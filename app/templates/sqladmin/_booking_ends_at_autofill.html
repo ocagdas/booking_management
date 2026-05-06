@@ -1,0 +1,68 @@
+<script>
+(function () {
+  "use strict";
+
+  /**
+   * Fetch the duration (minutes) for a service by ID,
+   * then compute and set ends_at = starts_at + duration.
+   */
+  function syncEndsAt(serviceId, startsEl) {
+    var endsEl = document.querySelector('[name="ends_at"]');
+    if (!endsEl || !startsEl || !serviceId) return;
+
+    var fp = startsEl._flatpickr;
+    var start = fp ? fp.selectedDates[0] : null;
+    if (!start && startsEl.value) {
+      start = new Date(startsEl.value.replace(" ", "T"));
+    }
+    if (!start || isNaN(start.getTime())) return;
+
+    fetch("/admin/api/services/" + serviceId)
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data) return;
+        var end = new Date(start.getTime() + data.duration_minutes * 60000);
+        var endsFp = endsEl._flatpickr;
+        if (endsFp) {
+          endsFp.setDate(end, true);
+        } else {
+          /* fallback: write ISO-like string the server accepts */
+          var pad = function (n) { return String(n).padStart(2, "0"); };
+          endsEl.value =
+            end.getFullYear() + "-" + pad(end.getMonth() + 1) + "-" + pad(end.getDate()) +
+            " " + pad(end.getHours()) + ":" + pad(end.getMinutes()) + ":00";
+        }
+      });
+  }
+
+  function init() {
+    var serviceEl = document.querySelector('select[name="service"]');
+    var startsEl  = document.querySelector('[name="starts_at"]');
+    if (!serviceEl || !startsEl) return;
+
+    /* service select changed */
+    serviceEl.addEventListener("change", function () {
+      syncEndsAt(this.value, startsEl);
+    });
+
+    /* starts_at changed — hook flatpickr if present, otherwise fall back */
+    var fp = startsEl._flatpickr;
+    if (fp) {
+      fp.config.onChange.push(function () {
+        syncEndsAt(serviceEl.value, startsEl);
+      });
+    } else {
+      startsEl.addEventListener("change", function () {
+        syncEndsAt(serviceEl.value, startsEl);
+      });
+    }
+  }
+
+  /* Wait for flatpickr to finish initialising */
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () { setTimeout(init, 150); });
+  } else {
+    setTimeout(init, 150);
+  }
+})();
+</script>

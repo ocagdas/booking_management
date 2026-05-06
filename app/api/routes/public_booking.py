@@ -41,8 +41,9 @@ def services_page(slug: str, request: Request, db: Session = Depends(get_db_sess
         .order_by(Service.name)
     ).all()
     return templates.TemplateResponse(
+        request,
         "public/services.html",
-        {"request": request, "business": business, "services": services},
+        {"business": business, "services": services},
     )
 
 
@@ -59,8 +60,9 @@ def slot_page(
         raise HTTPException(status_code=404, detail="Service not found")
     today = date.today().isoformat()
     return templates.TemplateResponse(
+        request,
         "public/slot.html",
-        {"request": request, "business": business, "service": service, "today": today},
+        {"business": business, "service": service, "today": today},
     )
 
 
@@ -96,9 +98,9 @@ def slots_fragment(
                 slots.append(starts_at.isoformat())
 
     return templates.TemplateResponse(
+        request,
         "public/slots_fragment.html",
         {
-            "request": request,
             "slots": slots,
             "business_slug": slug,
             "service_id": service_id,
@@ -128,9 +130,9 @@ def details_page(
         raise HTTPException(status_code=400, detail="Invalid starts_at format")
     ends_at_dt = starts_at_dt + timedelta(minutes=service.duration_minutes)
     return templates.TemplateResponse(
+        request,
         "public/details.html",
         {
-            "request": request,
             "business": business,
             "service": service,
             "starts_at": starts_at_dt,
@@ -206,9 +208,9 @@ def confirm_booking(
     booking = booking_service.create_booking(db, req)
 
     return templates.TemplateResponse(
+        request,
         "public/result.html",
         {
-            "request": request,
             "business": business,
             "business_slug": slug,
             "service": service,

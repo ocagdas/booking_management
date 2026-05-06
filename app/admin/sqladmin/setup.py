@@ -18,7 +18,7 @@ from app.admin.sqladmin.views import (
 
 
 def setup_sqladmin(app: FastAPI) -> None:
-    admin = Admin(app, engine, base_url="/admin/sql")
+    admin = Admin(app, engine, base_url="/admin/sql", templates_dir="app/templates")
     admin.add_view(BusinessAdmin)
     admin.add_view(LocationAdmin)
     admin.add_view(ServiceAdmin)

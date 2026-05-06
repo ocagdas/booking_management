@@ -75,6 +75,8 @@ class CustomerAdmin(ModelView, model=Customer):
 class BookingAdmin(ModelView, model=Booking):
     name = "Booking"
     name_plural = "Bookings"
+    create_template = "sqladmin/booking_create.html"
+    edit_template = "sqladmin/booking_edit.html"
     column_list = [
         Booking.id,
         Booking.business_id,
