@@ -8,16 +8,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db_session
-from app.models.booking import Booking, BookingStatus
+from app.models.booking import BookingStatus
 from app.models.business import Business
 from app.models.customer import Customer
 from app.models.resource import Resource
 from app.models.service import Service
 from app.models.staff import Staff
 from app.schemas.booking import BookingCreateRequest
-from app.services import booking_service
-
-_INACTIVE = {BookingStatus.cancelled, BookingStatus.rejected, BookingStatus.no_show}
+from app.services import availability_service, booking_service
 
 router = APIRouter(prefix="/book", tags=["public"])
 templates = Jinja2Templates(directory="app/templates")
@@ -63,10 +61,26 @@ def slot_page(
     if service is None or service.business_id != business.id:
         raise HTTPException(status_code=404, detail="Service not found")
     today = date.today().isoformat()
+    staff = db.scalars(
+        select(Staff)
+        .where(Staff.business_id == business.id, Staff.is_active.is_(True))
+        .order_by(Staff.name)
+    ).all()
+    resources = db.scalars(
+        select(Resource)
+        .where(Resource.business_id == business.id, Resource.is_active.is_(True))
+        .order_by(Resource.name)
+    ).all()
     return templates.TemplateResponse(
         request,
         "public/slot.html",
-        {"business": business, "service": service, "today": today},
+        {
+            "business": business,
+            "service": service,
+            "today": today,
+            "staff": staff,
+            "resources": resources,
+        },
     )
 
 
@@ -96,34 +110,17 @@ def slots_fragment(
             chosen_date = None
 
         if chosen_date:
-            # Fetch active bookings for this business on the chosen date so we
-            # can mark conflicting slots as unavailable without a query per slot.
-            day_start = datetime(
-                chosen_date.year, chosen_date.month, chosen_date.day, 0, 0, 0, tzinfo=_UTC
-            )
-            day_end = day_start + timedelta(days=1)
-            active_bookings = db.scalars(
-                select(Booking).where(
-                    Booking.business_id == business.id,
-                    Booking.status.notin_(_INACTIVE),
-                    Booking.starts_at < day_end,
-                    Booking.ends_at > day_start,
-                )
-            ).all()
-
             for hour in _SLOT_HOURS:
                 starts_at = datetime(
                     chosen_date.year, chosen_date.month, chosen_date.day, hour, 0, 0, tzinfo=_UTC
                 )
                 ends_at = starts_at + timedelta(minutes=service.duration_minutes)
-                # Effective end includes buffer so the next booking can't start
-                # within the buffer window.
+                # Buffer extends the effective window so the next slot can't
+                # start within the post-booking idle period.
                 effective_end = ends_at + timedelta(minutes=buffer)
 
-                # A slot is unavailable if any active booking's window overlaps.
-                booked = any(
-                    b.starts_at < effective_end and b.ends_at > starts_at
-                    for b in active_bookings
+                booked = not availability_service.is_business_slot_available(
+                    db, business.id, starts_at, effective_end
                 )
                 slots.append({"iso": starts_at.isoformat(), "booked": booked})
 

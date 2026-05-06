@@ -29,6 +29,7 @@ class Resource(Base):
     )
     name: Mapped[str] = mapped_column(sa.String(255), nullable=False)
     resource_type: Mapped[str | None] = mapped_column(sa.String(100), nullable=True)
+    count: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=1)
     is_active: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True), default=_now, nullable=False

@@ -11,7 +11,11 @@ from app.models.customer import Customer
 from app.models.resource import Resource
 from app.models.service import ApprovalMode, Service
 from app.models.staff import Staff
-from app.services.availability_service import check_resource_available, check_staff_available
+from app.services.availability_service import (
+    check_resource_available,
+    check_staff_available,
+    is_business_slot_available,
+)
 
 _UTC = timezone.utc
 
@@ -137,3 +141,101 @@ class TestStaffAvailability:
         assert check_staff_available(
             db_session, setup["staff"].id, _make_dt(9), _make_dt(10)
         )
+
+
+class TestResourceCapacity:
+    """Resource.count allows N concurrent bookings before blocking."""
+
+    def test_count_2_allows_two_concurrent(self, db_session, setup):
+        resource = setup["resource"]
+        resource.count = 2
+        db_session.flush()
+
+        _make_booking(db_session, setup, _make_dt(9), _make_dt(10), with_staff=False)
+        # First booking: 1 concurrent < 2 → still available
+        assert check_resource_available(
+            db_session, resource.id, _make_dt(9), _make_dt(10)
+        )
+
+    def test_count_2_blocks_third_concurrent(self, db_session, setup):
+        resource = setup["resource"]
+        resource.count = 2
+        db_session.flush()
+
+        _make_booking(db_session, setup, _make_dt(9), _make_dt(10), with_staff=False)
+        # Add a second booking for the same resource same slot
+        b2 = Booking(
+            business_id=setup["biz"].id,
+            service_id=setup["svc"].id,
+            customer_id=setup["customer"].id,
+            starts_at=_make_dt(9),
+            ends_at=_make_dt(10),
+            status=BookingStatus.confirmed,
+        )
+        db_session.add(b2)
+        db_session.flush()
+        db_session.add(BookingResource(booking_id=b2.id, resource_id=resource.id))
+        db_session.flush()
+
+        # Two concurrent bookings == capacity; third must be blocked
+        assert not check_resource_available(
+            db_session, resource.id, _make_dt(9), _make_dt(10)
+        )
+
+
+class TestIsBusinessSlotAvailable:
+    def test_no_resources_no_bookings_available(self, db_session, setup):
+        # Business with no resources configured, no bookings yet
+        biz = Business(name="Solo Biz", slug=f"solo-{uuid.uuid4().hex[:8]}")
+        db_session.add(biz)
+        db_session.flush()
+        assert is_business_slot_available(db_session, biz.id, _make_dt(9), _make_dt(10))
+
+    def test_no_resources_one_booking_blocks(self, db_session, setup):
+        # When no resources, second booking for same slot is blocked
+        biz = Business(name="Solo Biz2", slug=f"solo2-{uuid.uuid4().hex[:8]}")
+        db_session.add(biz)
+        db_session.flush()
+        svc = Service(
+            business_id=biz.id,
+            name="Cut",
+            duration_minutes=30,
+            price_pence=0,
+            approval_mode="auto",
+        )
+        cust = Customer(business_id=biz.id, name="Dave")
+        db_session.add_all([svc, cust])
+        db_session.flush()
+        b = Booking(
+            business_id=biz.id,
+            service_id=svc.id,
+            customer_id=cust.id,
+            starts_at=_make_dt(9),
+            ends_at=_make_dt(10),
+            status=BookingStatus.confirmed,
+        )
+        db_session.add(b)
+        db_session.flush()
+        assert not is_business_slot_available(db_session, biz.id, _make_dt(9), _make_dt(10))
+
+    def test_with_resources_available_capacity(self, db_session, setup):
+        # Business has a resource with count=2; one booking → slot still available
+        r = Resource(business_id=setup["biz"].id, name="Table A", count=2)
+        db_session.add(r)
+        db_session.flush()
+
+        b = Booking(
+            business_id=setup["biz"].id,
+            service_id=setup["svc"].id,
+            customer_id=setup["customer"].id,
+            starts_at=_make_dt(11),
+            ends_at=_make_dt(12),
+            status=BookingStatus.confirmed,
+        )
+        db_session.add(b)
+        db_session.flush()
+        db_session.add(BookingResource(booking_id=b.id, resource_id=r.id))
+        db_session.flush()
+
+        # resource r has capacity=2, used=1 → slot still available
+        assert is_business_slot_available(db_session, setup["biz"].id, _make_dt(11), _make_dt(12))

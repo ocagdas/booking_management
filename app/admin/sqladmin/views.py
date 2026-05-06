@@ -100,6 +100,28 @@ class BookingAdmin(ModelView, model=Booking):
     column_searchable_list = [Booking.status]
     column_sortable_list = [Booking.id, Booking.starts_at, Booking.status]
 
+    async def on_model_change(self, data: dict, model: Booking, is_created: bool, request) -> None:
+        """Prevent overlapping bookings from being created via the admin UI."""
+        if not is_created:
+            return
+
+        starts_at = data.get("starts_at")
+        ends_at = data.get("ends_at")
+        business_id = data.get("business_id")
+
+        if not (starts_at and ends_at and business_id):
+            return
+
+        from app.core.database import SessionLocal
+        from app.services.availability_service import is_business_slot_available
+
+        with SessionLocal() as session:
+            if not is_business_slot_available(session, business_id, starts_at, ends_at):
+                raise ValueError(
+                    "No capacity available for this time slot — "
+                    "all resources are at full capacity or a booking already exists."
+                )
+
 
 class BookingStaffAdmin(ModelView, model=BookingStaff):
     name = "Booking Staff"

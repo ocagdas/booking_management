@@ -5,6 +5,21 @@
 <h1>{{ service.name }}</h1>
 <p class="subtitle">Choose a date and time for your appointment ({{ service.duration_minutes }} min).</p>
 
+{% if staff or resources %}
+<div class="card" style="margin-bottom:1rem">
+  {% if staff %}
+  <p style="margin-bottom:.5rem"><strong>Available staff:</strong>
+    {% for s in staff %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+  </p>
+  {% endif %}
+  {% if resources %}
+  <p style="margin:0"><strong>Resources:</strong>
+    {% for r in resources %}{{ r.name }}{% if r.count > 1 %} (×{{ r.count }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+  </p>
+  {% endif %}
+</div>
+{% endif %}
+
 <div class="card">
   <label for="booking-date">Date</label>
   <input

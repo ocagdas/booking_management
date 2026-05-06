@@ -1,7 +1,7 @@
 """Availability engine — prevents double-booking of resources and staff."""
 from datetime import datetime
 
-from sqlalchemy import exists, select
+from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
 from app.models.booking import Booking, BookingResource, BookingStaff, BookingStatus
@@ -25,18 +25,27 @@ def check_resource_available(
     ends_at: datetime,
     exclude_booking_id: int | None = None,
 ) -> bool:
-    """Return True if the resource has no overlapping active bookings."""
+    """Return True if the resource has remaining capacity for the time window.
+
+    A resource with ``count=N`` can accommodate N concurrent bookings before
+    it is considered fully booked.
+    """
+    from app.models.resource import Resource  # local import avoids circular
+
+    resource = session.get(Resource, resource_id)
+    capacity: int = resource.count if resource else 1
+
     active_ids = _active_booking_ids(session, exclude_booking_id)
-    conflict = select(
-        exists().where(
+    concurrent: int = session.scalar(
+        select(func.count()).where(
             BookingResource.resource_id == resource_id,
             BookingResource.booking_id.in_(active_ids),
             Booking.id == BookingResource.booking_id,
             Booking.starts_at < ends_at,
             Booking.ends_at > starts_at,
         )
-    )
-    return not session.scalar(conflict)
+    ) or 0
+    return concurrent < capacity
 
 
 def check_staff_available(
@@ -58,3 +67,44 @@ def check_staff_available(
         )
     )
     return not session.scalar(conflict)
+
+
+def is_business_slot_available(
+    session: Session,
+    business_id: int,
+    starts_at: datetime,
+    ends_at: datetime,
+) -> bool:
+    """Return True if the business can accept at least one more booking.
+
+    * If the business has active resources configured, the slot is available
+      when at least one resource still has remaining capacity.
+    * If no resources are configured, fall back to a one-booking-per-slot
+      limit (suitable for simple appointment businesses).
+    """
+    from app.models.resource import Resource
+
+    resources = session.scalars(
+        select(Resource).where(
+            Resource.business_id == business_id,
+            Resource.is_active.is_(True),
+        )
+    ).all()
+
+    if resources:
+        return any(
+            check_resource_available(session, r.id, starts_at, ends_at)
+            for r in resources
+        )
+
+    # No resources configured — allow one concurrent booking per time slot.
+    count = session.scalar(
+        select(func.count(Booking.id)).where(
+            Booking.business_id == business_id,
+            Booking.status.notin_(_INACTIVE_STATUSES),
+            Booking.starts_at < ends_at,
+            Booking.ends_at > starts_at,
+        )
+    ) or 0
+    return count == 0
+
