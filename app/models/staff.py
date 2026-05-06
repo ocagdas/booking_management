@@ -20,6 +20,9 @@ def _now() -> datetime:
 class Staff(Base):
     __tablename__ = "staff"
 
+    def __str__(self) -> str:
+        return self.name
+
     id: Mapped[int] = mapped_column(primary_key=True)
     business_id: Mapped[int] = mapped_column(
         sa.ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False
@@ -42,6 +45,9 @@ class Staff(Base):
 
 class StaffRole(Base):
     __tablename__ = "staff_roles"
+
+    def __str__(self) -> str:
+        return self.role
 
     id: Mapped[int] = mapped_column(primary_key=True)
     staff_id: Mapped[int] = mapped_column(

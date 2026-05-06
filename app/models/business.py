@@ -23,6 +23,9 @@ def _now() -> datetime:
 class Business(Base):
     __tablename__ = "businesses"
 
+    def __str__(self) -> str:
+        return self.name
+
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(sa.String(255), nullable=False)
     slug: Mapped[str] = mapped_column(sa.String(100), unique=True, nullable=False)
@@ -45,6 +48,9 @@ class Business(Base):
 
 class Location(Base):
     __tablename__ = "locations"
+
+    def __str__(self) -> str:
+        return self.name
 
     id: Mapped[int] = mapped_column(primary_key=True)
     business_id: Mapped[int] = mapped_column(

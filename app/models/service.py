@@ -27,6 +27,9 @@ class ApprovalMode(str, enum.Enum):
 class Service(Base):
     __tablename__ = "services"
 
+    def __str__(self) -> str:
+        return self.name
+
     id: Mapped[int] = mapped_column(primary_key=True)
     business_id: Mapped[int] = mapped_column(
         sa.ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False

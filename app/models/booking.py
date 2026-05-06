@@ -52,6 +52,9 @@ class Booking(Base):
         sa.CheckConstraint("ends_at > starts_at", name="ck_booking_valid_time"),
     )
 
+    def __str__(self) -> str:
+        return f"Booking #{self.id} ({self.status})"
+
     id: Mapped[int] = mapped_column(primary_key=True)
     business_id: Mapped[int] = mapped_column(
         sa.ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False
@@ -91,6 +94,9 @@ class Booking(Base):
 class BookingStaff(Base):
     __tablename__ = "booking_staff"
 
+    def __str__(self) -> str:
+        return f"BookingStaff #{self.id}"
+
     id: Mapped[int] = mapped_column(primary_key=True)
     booking_id: Mapped[int] = mapped_column(
         sa.ForeignKey("bookings.id", ondelete="CASCADE"), nullable=False
@@ -105,6 +111,9 @@ class BookingStaff(Base):
 
 class BookingResource(Base):
     __tablename__ = "booking_resources"
+
+    def __str__(self) -> str:
+        return f"BookingResource #{self.id}"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     booking_id: Mapped[int] = mapped_column(

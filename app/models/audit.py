@@ -15,6 +15,9 @@ def _now() -> datetime:
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
+    def __str__(self) -> str:
+        return f"{self.entity_type} #{self.entity_id} – {self.action}"
+
     id: Mapped[int] = mapped_column(primary_key=True)
     business_id: Mapped[int | None] = mapped_column(
         sa.ForeignKey("businesses.id", ondelete="SET NULL"), nullable=True
