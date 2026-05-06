@@ -12,6 +12,7 @@ from app.models.staff import Staff, StaffRole
 class BusinessAdmin(ModelView, model=Business):
     name = "Business"
     name_plural = "Businesses"
+    details_template = "sqladmin/business_details.html"
     column_list = [Business.id, Business.name, Business.slug, Business.created_at]
     column_searchable_list = [Business.name, Business.slug]
     column_sortable_list = [Business.id, Business.name, Business.created_at]
@@ -28,6 +29,9 @@ class LocationAdmin(ModelView, model=Location):
 class ServiceAdmin(ModelView, model=Service):
     name = "Service"
     name_plural = "Services"
+    # Ensure is_active defaults to True on the create form so new services
+    # are immediately bookable without requiring an explicit toggle.
+    form_args = {"is_active": {"default": True}}
     column_list = [
         Service.id,
         Service.name,

@@ -1,0 +1,5 @@
+{% extends "sqladmin/details.html" %}
+{% block details_table %}
+<h4 class="mb-3 text-muted">{{ model.name }}</h4>
+{{ super() }}
+{% endblock %}
