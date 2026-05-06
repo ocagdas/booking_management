@@ -6,11 +6,13 @@ from typing import TYPE_CHECKING
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.models.associations import service_staff
 from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.booking import BookingStaff
     from app.models.business import Business
+    from app.models.service import Service
 
 
 def _now() -> datetime:
@@ -41,6 +43,9 @@ class Staff(Base):
     business: Mapped[Business] = relationship(back_populates="staff")
     roles: Mapped[list[StaffRole]] = relationship(back_populates="staff_member")
     booking_staff: Mapped[list[BookingStaff]] = relationship(back_populates="staff_member")
+    services: Mapped[list[Service]] = relationship(
+        secondary=service_staff, back_populates="staff_members"
+    )
 
 
 class StaffRole(Base):

@@ -6,12 +6,13 @@ from sqlalchemy.orm import Session
 
 from app.models.booking import (
     Booking,
+    BookingExtra,
     BookingResource,
     BookingStaff,
     BookingStatus,
     VALID_TRANSITIONS,
 )
-from app.models.service import ApprovalMode, Service
+from app.models.service import ApprovalMode, Service, calculate_amount_due
 from app.schemas.booking import BookingCreateRequest
 from app.services import audit_service, availability_service
 
@@ -51,6 +52,10 @@ def create_booking(session: Session, req: BookingCreateRequest) -> Booking:
                 detail=f"Staff member {sid} is not available for the requested time slot",
             )
 
+    # Calculate amount due based on service pricing.
+    duration_minutes = int((req.ends_at - req.starts_at).total_seconds() / 60)
+    amount_due = calculate_amount_due(service.unit_price, service.price_unit, duration_minutes)
+
     # Determine initial status from the service's approval mode.
     if service.approval_mode == ApprovalMode.auto:
         initial_status = BookingStatus.confirmed
@@ -69,6 +74,7 @@ def create_booking(session: Session, req: BookingCreateRequest) -> Booking:
         ends_at=req.ends_at,
         status=initial_status,
         notes=req.notes,
+        amount_due=amount_due,
     )
     session.add(booking)
     session.flush()  # get booking.id
@@ -79,13 +85,16 @@ def create_booking(session: Session, req: BookingCreateRequest) -> Booking:
     for sid in req.staff_ids:
         session.add(BookingStaff(booking_id=booking.id, staff_id=sid))
 
+    for extra_id in req.extra_ids:
+        session.add(BookingExtra(booking_id=booking.id, service_extra_id=extra_id))
+
     audit_service.log_event(
         session,
         entity_type="booking",
         entity_id=booking.id,
         action="booking_created",
         business_id=req.business_id,
-        payload={"status": initial_status.value},
+        payload={"status": initial_status.value, "amount_due": str(amount_due)},
     )
 
     session.commit()

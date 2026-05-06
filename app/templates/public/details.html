@@ -8,6 +8,14 @@
   {{ starts_at.strftime("%A %d %B %Y at %H:%M") }}
 </p>
 
+{% if amount_due is not none and amount_due > 0 %}
+<div class="card" style="background:#f0fdf4;border-left:4px solid #22c55e;margin-bottom:1rem">
+  <p style="margin:0"><strong>Estimated amount due:</strong>
+    <span style="font-size:1.2em">${{ "%.2f"|format(amount_due) }}</span>
+  </p>
+</div>
+{% endif %}
+
 <form method="post" action="/book/{{ business.slug }}/{{ service.id }}/confirm">
   <input type="hidden" name="starts_at" value="{{ starts_at_iso }}">
 
@@ -36,6 +44,22 @@
   </fieldset>
   {% endif %}
 
+  {% if extras %}
+  <fieldset>
+    <legend>Extras</legend>
+    {% for e in extras %}
+    <label style="display:block;margin-bottom:.3rem">
+      <input
+        type="checkbox"
+        name="extra_ids"
+        value="{{ e.id }}"
+        {% if e.default_selected %}checked{% endif %}
+      > {{ e.name }}{% if e.description %} <span style="color:#888;font-size:.9em">— {{ e.description }}</span>{% endif %}
+    </label>
+    {% endfor %}
+  </fieldset>
+  {% endif %}
+
   <label for="name">Full name *</label>
   <input id="name" type="text" name="name" required placeholder="Jane Smith">
 
@@ -45,8 +69,8 @@
   <label for="phone">Phone</label>
   <input id="phone" type="tel" name="phone" placeholder="+44 7700 000000">
 
-  <label for="notes">Notes (optional)</label>
-  <textarea id="notes" name="notes" rows="3" placeholder="Any requests or information..."></textarea>
+  <label for="notes">{{ notes_prompt }}</label>
+  <textarea id="notes" name="notes" rows="3" placeholder="{{ notes_prompt }}"></textarea>
 
   {% if error %}
   <p class="error">{{ error }}</p>

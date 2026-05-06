@@ -1,11 +1,12 @@
 from sqladmin import ModelView
 
 from app.models.audit import AuditLog
-from app.models.booking import Booking, BookingResource, BookingStaff
+from app.models.booking import Booking, BookingExtra, BookingResource, BookingStaff
 from app.models.business import Business, Location
 from app.models.customer import Customer
 from app.models.resource import Resource
 from app.models.service import Service
+from app.models.service_extra import ServiceExtra
 from app.models.staff import Staff, StaffRole
 
 
@@ -31,20 +32,21 @@ class ServiceAdmin(ModelView, model=Service):
     name = "Service"
     name_plural = "Services"
     details_template = "sqladmin/model_details.html"
-    # Ensure is_active defaults to True on the create form so new services
-    # are immediately bookable without requiring an explicit toggle.
     form_args = {"is_active": {"default": True}}
     column_list = [
         Service.id,
         Service.name,
         Service.business_id,
         Service.duration_minutes,
-        Service.price_pence,
+        Service.price_unit,
+        Service.unit_price,
         Service.approval_mode,
         Service.is_active,
     ]
     column_searchable_list = [Service.name]
-    column_sortable_list = [Service.id, Service.name, Service.price_pence]
+    column_sortable_list = [Service.id, Service.name, Service.unit_price]
+    # Expose M2M associations in the form so staff/resources can be linked.
+    form_include_pk = True
 
 
 class StaffAdmin(ModelView, model=Staff):
@@ -68,7 +70,7 @@ class ResourceAdmin(ModelView, model=Resource):
     name = "Resource"
     name_plural = "Resources"
     details_template = "sqladmin/model_details.html"
-    column_list = [Resource.id, Resource.name, Resource.business_id, Resource.is_active]
+    column_list = [Resource.id, Resource.name, Resource.business_id, Resource.resource_type, Resource.count, Resource.is_active]
     column_searchable_list = [Resource.name]
     column_sortable_list = [Resource.id, Resource.name]
 
@@ -96,6 +98,7 @@ class BookingAdmin(ModelView, model=Booking):
         Booking.status,
         Booking.starts_at,
         Booking.ends_at,
+        Booking.amount_due,
     ]
     column_searchable_list = [Booking.status]
     column_sortable_list = [Booking.id, Booking.starts_at, Booking.status]
@@ -135,6 +138,28 @@ class BookingResourceAdmin(ModelView, model=BookingResource):
     name_plural = "Booking Resources"
     details_template = "sqladmin/model_details.html"
     column_list = [BookingResource.id, BookingResource.booking_id, BookingResource.resource_id]
+
+
+class ServiceExtraAdmin(ModelView, model=ServiceExtra):
+    name = "Service Extra"
+    name_plural = "Service Extras"
+    details_template = "sqladmin/model_details.html"
+    column_list = [
+        ServiceExtra.id,
+        ServiceExtra.service_id,
+        ServiceExtra.name,
+        ServiceExtra.default_selected,
+        ServiceExtra.sort_order,
+    ]
+    column_searchable_list = [ServiceExtra.name]
+    column_sortable_list = [ServiceExtra.id, ServiceExtra.sort_order]
+
+
+class BookingExtraAdmin(ModelView, model=BookingExtra):
+    name = "Booking Extra"
+    name_plural = "Booking Extras"
+    details_template = "sqladmin/model_details.html"
+    column_list = [BookingExtra.id, BookingExtra.booking_id, BookingExtra.service_extra_id]
 
 
 class AuditLogAdmin(ModelView, model=AuditLog):

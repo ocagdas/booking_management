@@ -39,7 +39,7 @@ def _make_service(session, business_id: int, name: str = "Test Service") -> Serv
         business_id=business_id,
         name=name,
         duration_minutes=60,
-        price_pence=5000,
+        unit_price=0,
         approval_mode=ApprovalMode.auto,
     )
     session.add(service)

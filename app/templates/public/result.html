@@ -24,6 +24,9 @@
     {% endif %}
   </p>
   <p><strong>Booking reference:</strong> #{{ booking.id }}</p>
+  {% if booking.amount_due is not none %}
+  <p><strong>Amount due:</strong> ${{ "%.2f"|format(booking.amount_due) }}</p>
+  {% endif %}
 </div>
 
 {% if booking.status.value == "confirmed" %}

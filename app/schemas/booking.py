@@ -1,5 +1,6 @@
 """Pydantic v2 schemas for booking API."""
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -15,6 +16,7 @@ class BookingCreateRequest(BaseModel):
     ends_at: datetime
     resource_ids: list[int] = []
     staff_ids: list[int] = []
+    extra_ids: list[int] = []
     notes: str | None = None
 
     @field_validator("ends_at")
@@ -38,6 +40,7 @@ class BookingResponse(BaseModel):
     ends_at: datetime
     status: BookingStatus
     notes: str | None
+    amount_due: Decimal | None
 
 
 class BookingActionRequest(BaseModel):

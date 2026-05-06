@@ -35,7 +35,7 @@ def setup(db_session: Session):
         business_id=biz.id,
         name="MOT",
         duration_minutes=60,
-        price_pence=5000,
+        unit_price=0,
         approval_mode=ApprovalMode.auto,
     )
     resource = Resource(business_id=biz.id, name="Bay 1")
@@ -200,7 +200,7 @@ class TestIsBusinessSlotAvailable:
             business_id=biz.id,
             name="Cut",
             duration_minutes=30,
-            price_pence=0,
+            unit_price=0,
             approval_mode="auto",
         )
         cust = Customer(business_id=biz.id, name="Dave")

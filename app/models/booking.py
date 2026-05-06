@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
@@ -14,6 +15,7 @@ if TYPE_CHECKING:
     from app.models.customer import Customer
     from app.models.resource import Resource
     from app.models.service import Service
+    from app.models.service_extra import ServiceExtra
     from app.models.staff import Staff
 
 
@@ -103,6 +105,7 @@ class Booking(Base):
         default=BookingStatus.requested,
     )
     notes: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    amount_due: Mapped[Decimal | None] = mapped_column(sa.Numeric(10, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True), default=_now, nullable=False
     )
@@ -116,6 +119,7 @@ class Booking(Base):
     location: Mapped[Location | None] = relationship(back_populates="bookings")
     booking_staff: Mapped[list[BookingStaff]] = relationship(back_populates="booking")
     booking_resources: Mapped[list[BookingResource]] = relationship(back_populates="booking")
+    extras: Mapped[list[BookingExtra]] = relationship(back_populates="booking")
 
 
 class BookingStaff(Base):
@@ -152,3 +156,21 @@ class BookingResource(Base):
 
     booking: Mapped[Booking] = relationship(back_populates="booking_resources")
     resource: Mapped[Resource] = relationship(back_populates="booking_resources")
+
+
+class BookingExtra(Base):
+    __tablename__ = "booking_extras"
+
+    def __str__(self) -> str:
+        return f"BookingExtra #{self.id}"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    booking_id: Mapped[int] = mapped_column(
+        sa.ForeignKey("bookings.id", ondelete="CASCADE"), nullable=False
+    )
+    service_extra_id: Mapped[int] = mapped_column(
+        sa.ForeignKey("service_extras.id"), nullable=False
+    )
+
+    booking: Mapped[Booking] = relationship(back_populates="extras")
+    extra: Mapped[ServiceExtra] = relationship(back_populates="booking_extras")

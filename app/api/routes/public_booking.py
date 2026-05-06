@@ -12,7 +12,7 @@ from app.models.booking import BookingStatus
 from app.models.business import Business
 from app.models.customer import Customer
 from app.models.resource import Resource
-from app.models.service import Service
+from app.models.service import Service, calculate_amount_due
 from app.models.staff import Staff
 from app.schemas.booking import BookingCreateRequest
 from app.services import availability_service, booking_service
@@ -61,12 +61,13 @@ def slot_page(
     if service is None or service.business_id != business.id:
         raise HTTPException(status_code=404, detail="Service not found")
     today = date.today().isoformat()
-    staff = db.scalars(
+    # Use service-specific staff/resources if configured; fall back to all business ones.
+    staff = service.staff_members if service.staff_members else db.scalars(
         select(Staff)
         .where(Staff.business_id == business.id, Staff.is_active.is_(True))
         .order_by(Staff.name)
     ).all()
-    resources = db.scalars(
+    resources = service.resources if service.resources else db.scalars(
         select(Resource)
         .where(Resource.business_id == business.id, Resource.is_active.is_(True))
         .order_by(Resource.name)
@@ -159,12 +160,16 @@ def details_page(
         raise HTTPException(status_code=400, detail="Invalid starts_at format")
     ends_at_dt = starts_at_dt + timedelta(minutes=service.duration_minutes)
 
-    staff = db.scalars(
+    duration_minutes = service.duration_minutes
+    amount_due = calculate_amount_due(service.unit_price, service.price_unit, duration_minutes)
+
+    # Use service-specific staff/resources if configured; fall back to all business ones.
+    staff = service.staff_members if service.staff_members else db.scalars(
         select(Staff)
         .where(Staff.business_id == business.id, Staff.is_active.is_(True))
         .order_by(Staff.name)
     ).all()
-    resources = db.scalars(
+    resources = service.resources if service.resources else db.scalars(
         select(Resource)
         .where(Resource.business_id == business.id, Resource.is_active.is_(True))
         .order_by(Resource.name)
@@ -182,6 +187,9 @@ def details_page(
             "ends_at_local": ends_at_dt.strftime("%Y-%m-%dT%H:%M"),
             "staff": staff,
             "resources": resources,
+            "extras": service.extras,
+            "notes_prompt": service.notes_prompt or "Notes (optional)",
+            "amount_due": amount_due,
             "error": error,
         },
     )
@@ -203,6 +211,7 @@ def confirm_booking(
     notes: str = Form(""),
     staff_id: int | None = Form(None),
     resource_ids: list[int] = Form(default=[]),
+    extra_ids: list[int] = Form(default=[]),
     db: Session = Depends(get_db_session),
 ):
     business = _get_business(slug, db)
@@ -251,6 +260,7 @@ def confirm_booking(
         notes=notes or None,
         staff_ids=[staff_id] if staff_id else [],
         resource_ids=resource_ids,
+        extra_ids=extra_ids,
     )
     booking = booking_service.create_booking(db, req)
 

@@ -44,7 +44,7 @@ def auto_setup(db_session: Session):
         business_id=biz.id,
         name="Quick Wash",
         duration_minutes=60,
-        price_pence=1000,
+        unit_price=10,
         approval_mode=ApprovalMode.auto,
     )
     cust = Customer(business_id=biz.id, name="Alice")
@@ -62,7 +62,7 @@ def manual_setup(db_session: Session):
         business_id=biz.id,
         name="Full Service",
         duration_minutes=120,
-        price_pence=8000,
+        unit_price=20,
         approval_mode=ApprovalMode.manual,
     )
     cust = Customer(business_id=biz.id, name="Bob")
@@ -197,3 +197,41 @@ class TestGetBooking:
         with pytest.raises(HTTPException) as exc:
             booking_service.get_booking(db_session, 99999)
         assert exc.value.status_code == 404
+
+
+class TestAmountDue:
+    def test_flat_fee_ignores_duration(self):
+        from decimal import Decimal
+        from app.models.service import PriceUnit, calculate_amount_due
+
+        result = calculate_amount_due(Decimal("25.00"), PriceUnit.flat, 90)
+        assert result == Decimal("25.00")
+
+    def test_per_hour_rate(self):
+        from decimal import Decimal
+        from app.models.service import PriceUnit, calculate_amount_due
+
+        # £10/hour × 90 min = £15.00
+        result = calculate_amount_due(Decimal("10.00"), PriceUnit.per_hour, 90)
+        assert result == Decimal("15.00")
+
+    def test_per_5_min_rate(self):
+        from decimal import Decimal
+        from app.models.service import PriceUnit, calculate_amount_due
+
+        # £2 per 5 min × (30 min / 5) = £12.00
+        result = calculate_amount_due(Decimal("2.00"), PriceUnit.per_5_min, 30)
+        assert result == Decimal("12.00")
+
+    def test_amount_due_stored_on_booking(self, db_session, auto_setup):
+        from decimal import Decimal
+        from app.models.service import PriceUnit
+
+        biz, svc, cust = auto_setup
+        svc.unit_price = Decimal("10.00")
+        svc.price_unit = PriceUnit.per_hour
+        db_session.flush()
+
+        booking = booking_service.create_booking(db_session, _req(biz.id, svc.id, cust.id))
+        # 60 min at £10/hour = £10.00
+        assert booking.amount_due == Decimal("10.00")

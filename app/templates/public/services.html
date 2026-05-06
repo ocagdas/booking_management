@@ -8,7 +8,16 @@
   {% for svc in services %}
   <div class="card">
     <h3>{{ svc.name }}</h3>
-    <p>Duration: {{ svc.duration_minutes }} min &nbsp;|&nbsp; Price: £{{ "%.2f"|format(svc.price_pence / 100) }}</p>
+    <p>Duration: {{ svc.duration_minutes }} min &nbsp;|&nbsp; Price:
+      {% if svc.unit_price > 0 %}
+        ${{ "%.2f"|format(svc.unit_price) }}
+        {% if svc.price_unit.value != "flat" %}
+          / {{ svc.price_unit.value.replace("_", " ") }}
+        {% endif %}
+      {% else %}
+        Free
+      {% endif %}
+    </p>
     <a class="btn" href="/book/{{ business.slug }}/{{ svc.id }}/slot">Book →</a>
   </div>
   {% endfor %}
