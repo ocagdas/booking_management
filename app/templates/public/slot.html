@@ -1,0 +1,25 @@
+{% extends "public/base.html" %}
+{% block title %}Choose a Slot — {{ service.name }}{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="/book/{{ business.slug }}">← Services</a></p>
+<h1>{{ service.name }}</h1>
+<p class="subtitle">Choose a date and time for your appointment ({{ service.duration_minutes }} min).</p>
+
+<div class="card">
+  <label for="booking-date">Date</label>
+  <input
+    id="booking-date"
+    type="date"
+    name="date"
+    min="{{ today }}"
+    hx-get="/book/{{ business.slug }}/{{ service.id }}/slots"
+    hx-target="#slot-results"
+    hx-trigger="change"
+    hx-include="[name='date']"
+  >
+
+  <div id="slot-results">
+    <p style="color:#888">Pick a date to see available times.</p>
+  </div>
+</div>
+{% endblock %}

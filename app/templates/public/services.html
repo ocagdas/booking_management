@@ -1,0 +1,18 @@
+{% extends "public/base.html" %}
+{% block title %}Services — {{ business.name }}{% endblock %}
+{% block content %}
+<h1>{{ business.name }}</h1>
+<p class="subtitle">Select a service to book an appointment.</p>
+
+{% if services %}
+  {% for svc in services %}
+  <div class="card">
+    <h3>{{ svc.name }}</h3>
+    <p>Duration: {{ svc.duration_minutes }} min &nbsp;|&nbsp; Price: £{{ "%.2f"|format(svc.price_pence / 100) }}</p>
+    <a class="btn" href="/book/{{ business.slug }}/{{ svc.id }}/slot">Book →</a>
+  </div>
+  {% endfor %}
+{% else %}
+  <p>No services are currently available.</p>
+{% endif %}
+{% endblock %}

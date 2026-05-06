@@ -1,0 +1,32 @@
+{% extends "public/base.html" %}
+{% block title %}Your Details — {{ service.name }}{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="/book/{{ business.slug }}/{{ service.id }}/slot">← Choose slot</a></p>
+<h1>Your Details</h1>
+<p class="subtitle">
+  <strong>{{ service.name }}</strong> &mdash;
+  {{ starts_at.strftime("%A %d %B %Y at %H:%M") }}
+</p>
+
+<form method="post" action="/book/{{ business.slug }}/{{ service.id }}/confirm">
+  <input type="hidden" name="starts_at" value="{{ starts_at_iso }}">
+
+  <label for="name">Full name *</label>
+  <input id="name" type="text" name="name" required placeholder="Jane Smith">
+
+  <label for="email">Email</label>
+  <input id="email" type="email" name="email" placeholder="jane@example.com">
+
+  <label for="phone">Phone</label>
+  <input id="phone" type="tel" name="phone" placeholder="+44 7700 000000">
+
+  <label for="notes">Notes (optional)</label>
+  <textarea id="notes" name="notes" rows="3" placeholder="Any requests or information..."></textarea>
+
+  {% if error %}
+  <p class="error">{{ error }}</p>
+  {% endif %}
+
+  <button class="btn" type="submit">Confirm booking →</button>
+</form>
+{% endblock %}

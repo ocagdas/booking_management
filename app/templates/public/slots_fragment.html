@@ -1,0 +1,8 @@
+{% for slot in slots %}
+<div class="slot">
+  <span>{{ slot }}</span>
+  <a class="btn" href="/book/{{ business_slug }}/{{ service_id }}/details?starts_at={{ slot }}">Select</a>
+</div>
+{% else %}
+<p style="color:#888">No available slots for this date.</p>
+{% endfor %}

@@ -1,0 +1,36 @@
+{% extends "public/base.html" %}
+{% block title %}Booking Result{% endblock %}
+{% block content %}
+<h1>
+  {% if booking.status.value == "confirmed" %}
+    ✅ Booking Confirmed
+  {% elif booking.status.value == "pending_approval" %}
+    ⏳ Booking Received — Awaiting Approval
+  {% else %}
+    Booking Submitted
+  {% endif %}
+</h1>
+
+<div class="card">
+  <p><strong>Service:</strong> {{ service.name }}</p>
+  <p><strong>Date &amp; time:</strong> {{ booking.starts_at.strftime("%A %d %B %Y at %H:%M") }}</p>
+  <p><strong>Duration:</strong> {{ service.duration_minutes }} min</p>
+  <p>
+    <strong>Status:</strong>
+    {% if booking.status.value == "confirmed" %}
+      <span class="status-confirmed">Confirmed</span>
+    {% else %}
+      <span class="status-pending">Pending approval</span>
+    {% endif %}
+  </p>
+  <p><strong>Booking reference:</strong> #{{ booking.id }}</p>
+</div>
+
+{% if booking.status.value == "confirmed" %}
+  <p>We look forward to seeing you. You will receive a reminder closer to your appointment.</p>
+{% else %}
+  <p>We will review your request and confirm it shortly.</p>
+{% endif %}
+
+<a class="btn btn-secondary" href="/book/{{ business_slug }}">Book another service</a>
+{% endblock %}

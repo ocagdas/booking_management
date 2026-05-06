@@ -4,18 +4,18 @@ Configurable booking and resource management platform for service businesses, bu
 
 ## Status
 
-Phase 1 is complete:
+Phases 0–5 are complete:
 - FastAPI app package
 - `GET /health`
 - PostgreSQL settings
 - SQLAlchemy and Alembic setup
 - pytest support (verbose output by default)
 - Docker Compose support
-- Core models: Business, Location, Service, Staff, StaffRole, Resource, Customer, Booking, BookingStaff, BookingResource, AuditLog
-- Alembic migrations for all Phase 1 tables
-- Unit tests for all Phase 1 acceptance criteria
-
-SQLAdmin is intentionally deferred to the next step.
+- **Phase 1** — Core models: Business, Location, Service, Staff, StaffRole, Resource, Customer, Booking, BookingStaff, BookingResource, AuditLog
+- **Phase 2** — SQLAdmin mounted at `/admin/sql` with full CRUD views for all models
+- **Phase 3** — Availability engine: conflict detection for resources and staff
+- **Phase 4** — Booking & approval engine: REST API, service layer, audit logging
+- **Phase 5** — Public booking page: Jinja2 + HTMX server-rendered customer flow
 
 ## Product direction
 
@@ -48,7 +48,26 @@ Planned capabilities include:
 - business logic must live in service modules
 - FastAPI routes should stay thin
 - booking, voucher, and balance operations should use transactional workflows
-- SQLAdmin and HTMX remain future admin concerns, not part of Phase 0
+- SQLAdmin is at `/admin/sql` — no auth required in development
+
+## Available endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/health` | Health check |
+| GET | `/docs` | Swagger UI |
+| GET | `/redoc` | ReDoc |
+| POST | `/bookings` | Create a booking |
+| GET | `/bookings/{id}` | Get a booking |
+| POST | `/bookings/{id}/approve` | Approve a pending booking |
+| POST | `/bookings/{id}/reject` | Reject a booking |
+| POST | `/bookings/{id}/cancel` | Cancel a booking |
+| POST | `/bookings/{id}/complete` | Mark a booking completed |
+| GET | `/book/{slug}` | Public service list page |
+| GET | `/book/{slug}/{service_id}/slot` | Choose a time slot |
+| GET | `/book/{slug}/{service_id}/details` | Enter customer details |
+| POST | `/book/{slug}/{service_id}/confirm` | Submit booking |
+| GET | `/admin/sql` | SQLAdmin CRUD interface |
 
 ## Key documents
 
@@ -59,10 +78,18 @@ Planned capabilities include:
 
 ```text
 app/
+  admin/
+    sqladmin/          # SQLAdmin views and setup
   api/
-  core/
-  models/
+    routes/            # FastAPI route handlers (thin)
+  core/                # Settings, database, session
+  models/              # SQLAlchemy models
+  schemas/             # Pydantic v2 schemas
+  services/            # Business logic
+  templates/
+    public/            # Jinja2 templates for public booking pages
 tests/
+  unit/
 alembic/
 docker-compose.yml
 pyproject.toml
@@ -160,7 +187,7 @@ The repository supports both Docker-first and local/native-first workflows.
 
 ## Current implementation milestone
 
-Phase 1 (core models) is complete.  The next milestone is Phase 2: SQLAdmin.
+Phases 0–5 are complete. The next milestone is Phase 6: HTMX admin workflows.
 
 ## Working approach
 
