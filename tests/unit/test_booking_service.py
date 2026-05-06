@@ -95,6 +95,38 @@ class TestCreateBooking:
             booking_service.create_booking(db_session, _req(biz.id, 99999, cust.id))
         assert exc.value.status_code == 404
 
+    def test_ends_at_before_starts_at_raises_422(self, db_session, auto_setup):
+        """Service-layer defence: rejects inverted times even if Pydantic is bypassed."""
+        biz, svc, cust = auto_setup
+        req = BookingCreateRequest.model_construct(
+            business_id=biz.id,
+            service_id=svc.id,
+            customer_id=cust.id,
+            starts_at=_T1,
+            ends_at=_T0,  # ends before it starts
+            resource_ids=[],
+            staff_ids=[],
+        )
+        with pytest.raises(HTTPException) as exc:
+            booking_service.create_booking(db_session, req)
+        assert exc.value.status_code == 422
+
+    def test_ends_at_equal_starts_at_raises_422(self, db_session, auto_setup):
+        """Service-layer defence: rejects equal start/end times."""
+        biz, svc, cust = auto_setup
+        req = BookingCreateRequest.model_construct(
+            business_id=biz.id,
+            service_id=svc.id,
+            customer_id=cust.id,
+            starts_at=_T0,
+            ends_at=_T0,
+            resource_ids=[],
+            staff_ids=[],
+        )
+        with pytest.raises(HTTPException) as exc:
+            booking_service.create_booking(db_session, req)
+        assert exc.value.status_code == 422
+
 
 class TestApproveBooking:
     def test_approve_pending_booking(self, db_session, manual_setup):

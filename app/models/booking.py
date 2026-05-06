@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.models.base import Base
 
@@ -54,6 +54,18 @@ class Booking(Base):
 
     def __str__(self) -> str:
         return f"Booking #{self.id} ({self.status})"
+
+    @validates("ends_at")
+    def validate_ends_at(self, key: str, ends_at: datetime) -> datetime:
+        if self.starts_at is not None and ends_at is not None and ends_at <= self.starts_at:
+            raise ValueError("ends_at must be after starts_at")
+        return ends_at
+
+    @validates("starts_at")
+    def validate_starts_at(self, key: str, starts_at: datetime) -> datetime:
+        if self.ends_at is not None and starts_at is not None and starts_at >= self.ends_at:
+            raise ValueError("starts_at must be before ends_at")
+        return starts_at
 
     id: Mapped[int] = mapped_column(primary_key=True)
     business_id: Mapped[int] = mapped_column(

@@ -22,6 +22,12 @@ class ConflictError(Exception):
 
 def create_booking(session: Session, req: BookingCreateRequest) -> Booking:
     """Create a booking, run availability checks, and apply approval rules."""
+    if req.ends_at <= req.starts_at:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="ends_at must be after starts_at",
+        )
+
     service = session.get(Service, req.service_id)
     if service is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
