@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "zmart-booking"
+version = "0.1.0"
+description = "Phase 0 scaffold for the zmart_booking platform."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.16,<2.0",
+    "fastapi>=0.115,<1.0",
+    "psycopg[binary]>=3.2,<4.0",
+    "pydantic-settings>=2.9,<3.0",
+    "sqlalchemy>=2.0,<3.0",
+    "uvicorn>=0.34,<1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.28,<1.0",
+    "pytest>=8.3,<9.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
