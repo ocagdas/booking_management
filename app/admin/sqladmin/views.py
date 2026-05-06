@@ -12,7 +12,7 @@ from app.models.staff import Staff, StaffRole
 class BusinessAdmin(ModelView, model=Business):
     name = "Business"
     name_plural = "Businesses"
-    details_template = "sqladmin/business_details.html"
+    details_template = "sqladmin/model_details.html"
     column_list = [Business.id, Business.name, Business.slug, Business.created_at]
     column_searchable_list = [Business.name, Business.slug]
     column_sortable_list = [Business.id, Business.name, Business.created_at]
@@ -21,6 +21,7 @@ class BusinessAdmin(ModelView, model=Business):
 class LocationAdmin(ModelView, model=Location):
     name = "Location"
     name_plural = "Locations"
+    details_template = "sqladmin/model_details.html"
     column_list = [Location.id, Location.name, Location.business_id, Location.address]
     column_searchable_list = [Location.name]
     column_sortable_list = [Location.id, Location.name]
@@ -29,6 +30,7 @@ class LocationAdmin(ModelView, model=Location):
 class ServiceAdmin(ModelView, model=Service):
     name = "Service"
     name_plural = "Services"
+    details_template = "sqladmin/model_details.html"
     # Ensure is_active defaults to True on the create form so new services
     # are immediately bookable without requiring an explicit toggle.
     form_args = {"is_active": {"default": True}}
@@ -48,6 +50,7 @@ class ServiceAdmin(ModelView, model=Service):
 class StaffAdmin(ModelView, model=Staff):
     name = "Staff"
     name_plural = "Staff"
+    details_template = "sqladmin/model_details.html"
     column_list = [Staff.id, Staff.name, Staff.business_id, Staff.email, Staff.is_active]
     column_searchable_list = [Staff.name, Staff.email]
     column_sortable_list = [Staff.id, Staff.name]
@@ -56,6 +59,7 @@ class StaffAdmin(ModelView, model=Staff):
 class StaffRoleAdmin(ModelView, model=StaffRole):
     name = "Staff Role"
     name_plural = "Staff Roles"
+    details_template = "sqladmin/model_details.html"
     column_list = [StaffRole.id, StaffRole.staff_id, StaffRole.role, StaffRole.created_at]
     column_searchable_list = [StaffRole.role]
 
@@ -63,6 +67,7 @@ class StaffRoleAdmin(ModelView, model=StaffRole):
 class ResourceAdmin(ModelView, model=Resource):
     name = "Resource"
     name_plural = "Resources"
+    details_template = "sqladmin/model_details.html"
     column_list = [Resource.id, Resource.name, Resource.business_id, Resource.is_active]
     column_searchable_list = [Resource.name]
     column_sortable_list = [Resource.id, Resource.name]
@@ -71,6 +76,7 @@ class ResourceAdmin(ModelView, model=Resource):
 class CustomerAdmin(ModelView, model=Customer):
     name = "Customer"
     name_plural = "Customers"
+    details_template = "sqladmin/model_details.html"
     column_list = [Customer.id, Customer.name, Customer.business_id, Customer.email, Customer.phone]
     column_searchable_list = [Customer.name, Customer.email]
     column_sortable_list = [Customer.id, Customer.name]
@@ -79,6 +85,7 @@ class CustomerAdmin(ModelView, model=Customer):
 class BookingAdmin(ModelView, model=Booking):
     name = "Booking"
     name_plural = "Bookings"
+    details_template = "sqladmin/model_details.html"
     create_template = "sqladmin/booking_create.html"
     edit_template = "sqladmin/booking_edit.html"
     column_list = [
@@ -97,18 +104,21 @@ class BookingAdmin(ModelView, model=Booking):
 class BookingStaffAdmin(ModelView, model=BookingStaff):
     name = "Booking Staff"
     name_plural = "Booking Staff"
+    details_template = "sqladmin/model_details.html"
     column_list = [BookingStaff.id, BookingStaff.booking_id, BookingStaff.staff_id]
 
 
 class BookingResourceAdmin(ModelView, model=BookingResource):
     name = "Booking Resource"
     name_plural = "Booking Resources"
+    details_template = "sqladmin/model_details.html"
     column_list = [BookingResource.id, BookingResource.booking_id, BookingResource.resource_id]
 
 
 class AuditLogAdmin(ModelView, model=AuditLog):
     name = "Audit Log"
     name_plural = "Audit Logs"
+    details_template = "sqladmin/model_details.html"
     can_create = False
     can_edit = False
     can_delete = False

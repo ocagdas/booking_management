@@ -13,4 +13,8 @@ def service_info(service_id: int, db: Session = Depends(get_db_session)):
     service = db.get(Service, service_id)
     if service is None:
         raise HTTPException(status_code=404, detail="Service not found")
-    return {"id": service.id, "duration_minutes": service.duration_minutes}
+    return {
+        "id": service.id,
+        "duration_minutes": service.duration_minutes,
+        "buffer_after_minutes": service.buffer_after_minutes,
+    }

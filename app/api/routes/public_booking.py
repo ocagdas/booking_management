@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db_session
-from app.models.booking import BookingStatus
+from app.models.booking import Booking, BookingStatus
 from app.models.business import Business
 from app.models.customer import Customer
 from app.models.resource import Resource
@@ -16,6 +16,8 @@ from app.models.service import Service
 from app.models.staff import Staff
 from app.schemas.booking import BookingCreateRequest
 from app.services import booking_service
+
+_INACTIVE = {BookingStatus.cancelled, BookingStatus.rejected, BookingStatus.no_show}
 
 router = APIRouter(prefix="/book", tags=["public"])
 templates = Jinja2Templates(directory="app/templates")
@@ -84,7 +86,9 @@ def slots_fragment(
     if service is None or service.business_id != business.id:
         raise HTTPException(status_code=404, detail="Service not found")
 
-    slots: list[str] = []
+    buffer = service.buffer_after_minutes or 0
+    slots: list[dict] = []
+
     if date:
         try:
             chosen_date = datetime.fromisoformat(date).date()
@@ -92,12 +96,36 @@ def slots_fragment(
             chosen_date = None
 
         if chosen_date:
+            # Fetch active bookings for this business on the chosen date so we
+            # can mark conflicting slots as unavailable without a query per slot.
+            day_start = datetime(
+                chosen_date.year, chosen_date.month, chosen_date.day, 0, 0, 0, tzinfo=_UTC
+            )
+            day_end = day_start + timedelta(days=1)
+            active_bookings = db.scalars(
+                select(Booking).where(
+                    Booking.business_id == business.id,
+                    Booking.status.notin_(_INACTIVE),
+                    Booking.starts_at < day_end,
+                    Booking.ends_at > day_start,
+                )
+            ).all()
+
             for hour in _SLOT_HOURS:
                 starts_at = datetime(
                     chosen_date.year, chosen_date.month, chosen_date.day, hour, 0, 0, tzinfo=_UTC
                 )
                 ends_at = starts_at + timedelta(minutes=service.duration_minutes)
-                slots.append(starts_at.isoformat())
+                # Effective end includes buffer so the next booking can't start
+                # within the buffer window.
+                effective_end = ends_at + timedelta(minutes=buffer)
+
+                # A slot is unavailable if any active booking's window overlaps.
+                booked = any(
+                    b.starts_at < effective_end and b.ends_at > starts_at
+                    for b in active_bookings
+                )
+                slots.append({"iso": starts_at.isoformat(), "booked": booked})
 
     return templates.TemplateResponse(
         request,
@@ -126,8 +154,10 @@ def details_page(
     service = db.get(Service, service_id)
     if service is None or service.business_id != business.id:
         raise HTTPException(status_code=404, detail="Service not found")
+    # URL-encoding turns '+' into a space; restore it before parsing so that
+    # timezone offsets like +00:00 are handled correctly.
     try:
-        starts_at_dt = datetime.fromisoformat(starts_at)
+        starts_at_dt = datetime.fromisoformat(starts_at.replace(" ", "+"))
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid starts_at format")
     ends_at_dt = starts_at_dt + timedelta(minutes=service.duration_minutes)
@@ -175,7 +205,7 @@ def confirm_booking(
     phone: str = Form(""),
     notes: str = Form(""),
     staff_id: int | None = Form(None),
-    resource_id: int | None = Form(None),
+    resource_ids: list[int] = Form(default=[]),
     db: Session = Depends(get_db_session),
 ):
     business = _get_business(slug, db)
@@ -223,7 +253,7 @@ def confirm_booking(
         ends_at=ends_at_dt,
         notes=notes or None,
         staff_ids=[staff_id] if staff_id else [],
-        resource_ids=[resource_id] if resource_id else [],
+        resource_ids=resource_ids,
     )
     booking = booking_service.create_booking(db, req)
 

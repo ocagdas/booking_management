@@ -21,7 +21,8 @@
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
         if (!data) return;
-        var end = new Date(start.getTime() + data.duration_minutes * 60000);
+        var totalMinutes = data.duration_minutes + (data.buffer_after_minutes || 0);
+        var end = new Date(start.getTime() + totalMinutes * 60000);
         var endsFp = endsEl._flatpickr;
         if (endsFp) {
           endsFp.setDate(end, true);

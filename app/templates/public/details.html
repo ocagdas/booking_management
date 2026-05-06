@@ -27,10 +27,10 @@
 
   {% if resources %}
   <fieldset>
-    <legend>Resource <span style="font-weight:normal;color:#888">(optional)</span></legend>
+    <legend>Resources <span style="font-weight:normal;color:#888">(optional — select one or more)</span></legend>
     {% for r in resources %}
     <label style="display:block;margin-bottom:.3rem">
-      <input type="radio" name="resource_id" value="{{ r.id }}"> {{ r.name }}
+      <input type="checkbox" name="resource_ids" value="{{ r.id }}"> {{ r.name }}
     </label>
     {% endfor %}
   </fieldset>

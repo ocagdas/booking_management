@@ -36,6 +36,7 @@ class Service(Base):
     )
     name: Mapped[str] = mapped_column(sa.String(255), nullable=False)
     duration_minutes: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    buffer_after_minutes: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=0)
     price_pence: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=0)
     approval_mode: Mapped[ApprovalMode] = mapped_column(
         sa.Enum(ApprovalMode, name="approval_mode"),
