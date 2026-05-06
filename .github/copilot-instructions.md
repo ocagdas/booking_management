@@ -47,5 +47,5 @@ Build a configurable booking, resource allocation, approval, voucher, loyalty, a
 
 ## Source of truth
 
-- Roadmap: `/home/runner/work/booking_management/booking_management/docs/roadmaps/fastapi_booking_platform_roadmap.md`
+- Roadmap: `docs/roadmaps/fastapi_booking_platform_roadmap.md`
 - Current starting point: Phase 0 project skeleton

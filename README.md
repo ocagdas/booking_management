@@ -41,8 +41,8 @@ Planned capabilities include:
 
 ## Key documents
 
-- roadmap: `/home/runner/work/booking_management/booking_management/docs/roadmaps/fastapi_booking_platform_roadmap.md`
-- Copilot instructions: `/home/runner/work/booking_management/booking_management/.github/copilot-instructions.md`
+- roadmap: `docs/roadmaps/fastapi_booking_platform_roadmap.md`
+- Copilot instructions: `.github/copilot-instructions.md`
 
 ## Initial implementation target
 
