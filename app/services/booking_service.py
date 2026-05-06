@@ -24,7 +24,7 @@ def create_booking(session: Session, req: BookingCreateRequest) -> Booking:
     """Create a booking, run availability checks, and apply approval rules."""
     if req.ends_at <= req.starts_at:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="ends_at must be after starts_at",
         )
 

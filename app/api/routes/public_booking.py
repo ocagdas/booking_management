@@ -126,6 +126,7 @@ def details_page(
         starts_at_dt = datetime.fromisoformat(starts_at)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid starts_at format")
+    ends_at_dt = starts_at_dt + timedelta(minutes=service.duration_minutes)
     return templates.TemplateResponse(
         "public/details.html",
         {
@@ -134,6 +135,8 @@ def details_page(
             "service": service,
             "starts_at": starts_at_dt,
             "starts_at_iso": starts_at,
+            "ends_at": ends_at_dt,
+            "ends_at_local": ends_at_dt.strftime("%Y-%m-%dT%H:%M"),
             "error": error,
         },
     )
@@ -148,6 +151,7 @@ def confirm_booking(
     service_id: int,
     request: Request,
     starts_at: str = Form(...),
+    ends_at: str = Form(...),
     name: str = Form(...),
     email: str = Form(""),
     phone: str = Form(""),
@@ -166,7 +170,12 @@ def confirm_booking(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid starts_at")
 
-    ends_at_dt = starts_at_dt + timedelta(minutes=service.duration_minutes)
+    try:
+        ends_at_dt = datetime.fromisoformat(ends_at)
+        if ends_at_dt.tzinfo is None:
+            ends_at_dt = ends_at_dt.replace(tzinfo=_UTC)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ends_at")
 
     # Find or create the customer record for this business.
     customer = db.scalar(

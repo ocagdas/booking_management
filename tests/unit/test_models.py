@@ -159,7 +159,8 @@ def test_create_booking_with_staff_and_resource(db_session) -> None:
 
 
 def test_invalid_booking_time_fails(db_session) -> None:
-    """A booking where ends_at <= starts_at violates the DB check constraint."""
+    """A booking where ends_at <= starts_at is rejected — either by the ORM
+    validator (ValueError) or the DB check constraint (IntegrityError)."""
     business = _make_business(db_session, name="Mobile", slug="mobile")
     service = _make_service(db_session, business.id)
     customer = _make_customer(db_session, business.id)
@@ -167,17 +168,16 @@ def test_invalid_booking_time_fails(db_session) -> None:
     starts = _now()
     ends = starts - timedelta(hours=1)  # ends before starts → invalid
 
-    booking = Booking(
-        business_id=business.id,
-        service_id=service.id,
-        customer_id=customer.id,
-        starts_at=starts,
-        ends_at=ends,
-        status=BookingStatus.requested,
-    )
-    db_session.add(booking)
-
-    with pytest.raises(IntegrityError):
+    with pytest.raises((ValueError, IntegrityError)):
+        booking = Booking(
+            business_id=business.id,
+            service_id=service.id,
+            customer_id=customer.id,
+            starts_at=starts,
+            ends_at=ends,
+            status=BookingStatus.requested,
+        )
+        db_session.add(booking)
         db_session.flush()
 
     db_session.rollback()

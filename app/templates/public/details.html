@@ -11,6 +11,9 @@
 <form method="post" action="/book/{{ business.slug }}/{{ service.id }}/confirm">
   <input type="hidden" name="starts_at" value="{{ starts_at_iso }}">
 
+  <label for="ends_at">End time</label>
+  <input id="ends_at" type="datetime-local" name="ends_at" value="{{ ends_at_local }}" required>
+
   <label for="name">Full name *</label>
   <input id="name" type="text" name="name" required placeholder="Jane Smith">
 
