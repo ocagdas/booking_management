@@ -21,6 +21,19 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _as_utc(dt: datetime) -> datetime:
+    """Return a timezone-aware UTC datetime for safe comparison.
+
+    SQLAdmin submits form values as naive datetimes (no tzinfo), while values
+    already stored in the database are UTC-aware.  Treating a naive value as
+    UTC is correct here because the DB column is ``DateTime(timezone=True)``
+    and PostgreSQL stores everything in UTC.
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 class BookingStatus(str, enum.Enum):
     requested = "requested"
     pending_approval = "pending_approval"
@@ -57,14 +70,16 @@ class Booking(Base):
 
     @validates("ends_at")
     def validate_ends_at(self, key: str, ends_at: datetime) -> datetime:
-        if self.starts_at is not None and ends_at is not None and ends_at <= self.starts_at:
-            raise ValueError("ends_at must be after starts_at")
+        if self.starts_at is not None and ends_at is not None:
+            if _as_utc(ends_at) <= _as_utc(self.starts_at):
+                raise ValueError("ends_at must be after starts_at")
         return ends_at
 
     @validates("starts_at")
     def validate_starts_at(self, key: str, starts_at: datetime) -> datetime:
-        if self.ends_at is not None and starts_at is not None and starts_at >= self.ends_at:
-            raise ValueError("starts_at must be before ends_at")
+        if self.ends_at is not None and starts_at is not None:
+            if _as_utc(starts_at) >= _as_utc(self.ends_at):
+                raise ValueError("starts_at must be before ends_at")
         return starts_at
 
     id: Mapped[int] = mapped_column(primary_key=True)

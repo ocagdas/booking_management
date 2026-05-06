@@ -14,6 +14,28 @@
   <label for="ends_at">End time</label>
   <input id="ends_at" type="datetime-local" name="ends_at" value="{{ ends_at_local }}" required>
 
+  {% if staff %}
+  <fieldset>
+    <legend>Staff member <span style="font-weight:normal;color:#888">(optional)</span></legend>
+    {% for s in staff %}
+    <label style="display:block;margin-bottom:.3rem">
+      <input type="radio" name="staff_id" value="{{ s.id }}"> {{ s.name }}
+    </label>
+    {% endfor %}
+  </fieldset>
+  {% endif %}
+
+  {% if resources %}
+  <fieldset>
+    <legend>Resource <span style="font-weight:normal;color:#888">(optional)</span></legend>
+    {% for r in resources %}
+    <label style="display:block;margin-bottom:.3rem">
+      <input type="radio" name="resource_id" value="{{ r.id }}"> {{ r.name }}
+    </label>
+    {% endfor %}
+  </fieldset>
+  {% endif %}
+
   <label for="name">Full name *</label>
   <input id="name" type="text" name="name" required placeholder="Jane Smith">
 

@@ -45,24 +45,43 @@
       syncEndsAt(this.value, startsEl);
     });
 
-    /* starts_at changed — hook flatpickr if present, otherwise fall back */
+    /* starts_at changed — hook flatpickr via fp.set() which is the
+       supported API for adding onChange handlers after initialisation.
+       Also bind the plain "change" and "input" events as a fallback for
+       browsers / themes that don't use flatpickr. */
     var fp = startsEl._flatpickr;
     if (fp) {
-      fp.config.onChange.push(function () {
+      var existing = fp.config.onChange || [];
+      fp.set("onChange", existing.concat([function () {
         syncEndsAt(serviceEl.value, startsEl);
-      });
+      }]));
+    }
+    /* Always add DOM-level listeners so manual keyboard edits are caught too */
+    startsEl.addEventListener("change", function () {
+      syncEndsAt(serviceEl.value, startsEl);
+    });
+    startsEl.addEventListener("input", function () {
+      syncEndsAt(serviceEl.value, startsEl);
+    });
+  }
+
+  /* Wait for flatpickr to finish initialising — use a slightly longer
+     delay on edit pages where the widget may repaint after loading data. */
+  function tryInit(attemptsLeft) {
+    var startsEl = document.querySelector('[name="starts_at"]');
+    if (startsEl && startsEl._flatpickr) {
+      init();
+    } else if (attemptsLeft > 0) {
+      setTimeout(function () { tryInit(attemptsLeft - 1); }, 150);
     } else {
-      startsEl.addEventListener("change", function () {
-        syncEndsAt(serviceEl.value, startsEl);
-      });
+      init(); /* run anyway, DOM listeners will still work */
     }
   }
 
-  /* Wait for flatpickr to finish initialising */
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function () { setTimeout(init, 150); });
+    document.addEventListener("DOMContentLoaded", function () { tryInit(5); });
   } else {
-    setTimeout(init, 150);
+    tryInit(5);
   }
 })();
 </script>

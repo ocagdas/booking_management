@@ -11,7 +11,9 @@ from app.core.database import get_db_session
 from app.models.booking import BookingStatus
 from app.models.business import Business
 from app.models.customer import Customer
+from app.models.resource import Resource
 from app.models.service import Service
+from app.models.staff import Staff
 from app.schemas.booking import BookingCreateRequest
 from app.services import booking_service
 
@@ -129,6 +131,18 @@ def details_page(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid starts_at format")
     ends_at_dt = starts_at_dt + timedelta(minutes=service.duration_minutes)
+
+    staff = db.scalars(
+        select(Staff)
+        .where(Staff.business_id == business.id, Staff.is_active.is_(True))
+        .order_by(Staff.name)
+    ).all()
+    resources = db.scalars(
+        select(Resource)
+        .where(Resource.business_id == business.id, Resource.is_active.is_(True))
+        .order_by(Resource.name)
+    ).all()
+
     return templates.TemplateResponse(
         request,
         "public/details.html",
@@ -139,6 +153,8 @@ def details_page(
             "starts_at_iso": starts_at,
             "ends_at": ends_at_dt,
             "ends_at_local": ends_at_dt.strftime("%Y-%m-%dT%H:%M"),
+            "staff": staff,
+            "resources": resources,
             "error": error,
         },
     )
@@ -158,6 +174,8 @@ def confirm_booking(
     email: str = Form(""),
     phone: str = Form(""),
     notes: str = Form(""),
+    staff_id: int | None = Form(None),
+    resource_id: int | None = Form(None),
     db: Session = Depends(get_db_session),
 ):
     business = _get_business(slug, db)
@@ -204,6 +222,8 @@ def confirm_booking(
         starts_at=starts_at_dt,
         ends_at=ends_at_dt,
         notes=notes or None,
+        staff_ids=[staff_id] if staff_id else [],
+        resource_ids=[resource_id] if resource_id else [],
     )
     booking = booking_service.create_booking(db, req)
 
