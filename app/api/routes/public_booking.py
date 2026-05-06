@@ -182,7 +182,10 @@ def details_page(
             "business": business,
             "service": service,
             "starts_at": starts_at_dt,
-            "starts_at_iso": starts_at,
+            # Use a plain naive UTC string (no + sign) so the hidden form field
+            # round-trips cleanly through URL → form → POST without the
+            # + ↔ space encoding corruption that afflicts timezone offsets.
+            "starts_at_iso": starts_at_dt.strftime("%Y-%m-%dT%H:%M:%S"),
             "ends_at": ends_at_dt,
             "ends_at_local": ends_at_dt.strftime("%Y-%m-%dT%H:%M"),
             "staff": staff,
@@ -220,14 +223,16 @@ def confirm_booking(
         raise HTTPException(status_code=404, detail="Service not found")
 
     try:
-        starts_at_dt = datetime.fromisoformat(starts_at)
+        # Defensively handle the + ↔ space encoding issue: a '+' in a query
+        # string or form value can arrive as a space after URL decoding.
+        starts_at_dt = datetime.fromisoformat(starts_at.replace(" ", "+"))
         if starts_at_dt.tzinfo is None:
             starts_at_dt = starts_at_dt.replace(tzinfo=_UTC)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid starts_at")
 
     try:
-        ends_at_dt = datetime.fromisoformat(ends_at)
+        ends_at_dt = datetime.fromisoformat(ends_at.replace(" ", "+"))
         if ends_at_dt.tzinfo is None:
             ends_at_dt = ends_at_dt.replace(tzinfo=_UTC)
     except ValueError:
