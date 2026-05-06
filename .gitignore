@@ -8,4 +8,5 @@ htmlcov/
 *.pyo
 *.pyd
 alembic/__pycache__/
+docker-compose.override.yml
 

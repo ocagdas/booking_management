@@ -4,13 +4,16 @@ Configurable booking and resource management platform for service businesses, bu
 
 ## Status
 
-Phase 0 is now scaffolded:
+Phase 1 is complete:
 - FastAPI app package
 - `GET /health`
 - PostgreSQL settings
 - SQLAlchemy and Alembic setup
-- pytest support
+- pytest support (verbose output by default)
 - Docker Compose support
+- Core models: Business, Location, Service, Staff, StaffRole, Resource, Customer, Booking, BookingStaff, BookingResource, AuditLog
+- Alembic migrations for all Phase 1 tables
+- Unit tests for all Phase 1 acceptance criteria
 
 SQLAdmin is intentionally deferred to the next step.
 
@@ -64,6 +67,28 @@ alembic/
 docker-compose.yml
 pyproject.toml
 ```
+
+## Local Docker customisation
+
+Docker Compose automatically merges `docker-compose.override.yml` on top of
+`docker-compose.yml`.  This file is gitignored so you can customise your local
+setup without affecting other developers.
+
+To create your override:
+
+```bash
+cp docker-compose.override.yml.example docker-compose.override.yml
+# edit as needed, then:
+docker compose up --build
+```
+
+Common uses:
+
+| Setting | Default | Override example |
+|---|---|---|
+| App host port | 8000 | `"8001:8000"` |
+| Postgres host port | 5432 | `"5433:5432"` |
+| Postgres volume name | `postgres_data` | any name you like |
 
 ## Setup paths
 
@@ -133,15 +158,9 @@ The repository supports both Docker-first and local/native-first workflows.
    pytest
    ```
 
-## Initial implementation target
+## Current implementation milestone
 
-The current build milestone is Phase 0 from the roadmap:
-- create the FastAPI project skeleton
-- add a health endpoint
-- configure PostgreSQL and Alembic
-- add pytest support
-- add Docker Compose
-- keep the repository structure aligned with the planned architecture
+Phase 1 (core models) is complete.  The next milestone is Phase 2: SQLAdmin.
 
 ## Working approach
 

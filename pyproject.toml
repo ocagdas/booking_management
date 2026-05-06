@@ -27,6 +27,6 @@ dev = [
 packages = ["app"]
 
 [tool.pytest.ini_options]
-addopts = "-q"
+addopts = "-v"
 testpaths = ["tests"]
 
