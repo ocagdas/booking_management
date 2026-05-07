@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.models.associations import resource_locations, staff_locations
 from app.models.base import Base
 
 if TYPE_CHECKING:
@@ -66,5 +67,11 @@ class Location(Base):
         sa.DateTime(timezone=True), default=_now, onupdate=_now, nullable=False
     )
 
-    business: Mapped[Business] = relationship(back_populates="locations")
+    business: Mapped[Business] = relationship(back_populates="locations", lazy="joined")
     bookings: Mapped[list[Booking]] = relationship(back_populates="location")
+    staff_members: Mapped[list[Staff]] = relationship(
+        secondary=staff_locations, back_populates="locations"
+    )
+    resources: Mapped[list[Resource]] = relationship(
+        secondary=resource_locations, back_populates="locations"
+    )

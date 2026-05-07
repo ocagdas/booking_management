@@ -8,7 +8,7 @@
     </span>
     <span class="nav-link-title">{{ menu.display_name }}</span>
   </a>
-  <div class="dropdown-menu {% if menu.is_active(request) %}show{% endif %}">
+  <div class="dropdown-menu">
     <div class="dropdown-menu-columns">
       <div class="dropdown-menu-column">
         {% for sub_menu in menu.children %}

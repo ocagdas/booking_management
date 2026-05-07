@@ -6,12 +6,12 @@ from typing import TYPE_CHECKING
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.associations import service_staff, staff_roles
+from app.models.associations import service_staff, staff_locations, staff_roles
 from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.booking import BookingStaff
-    from app.models.business import Business
+    from app.models.business import Business, Location
     from app.models.service import Service
 
 
@@ -70,6 +70,9 @@ class Staff(Base):
     )
 
     business: Mapped[Business] = relationship(back_populates="staff")
+    locations: Mapped[list[Location]] = relationship(
+        secondary=staff_locations, back_populates="staff_members"
+    )
     roles: Mapped[list[Role]] = relationship(
         secondary=staff_roles, back_populates="staff_members"
     )

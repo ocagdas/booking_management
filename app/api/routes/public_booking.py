@@ -5,11 +5,11 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db_session
 from app.models.booking import BookingStatus
-from app.models.business import Business
+from app.models.business import Business, Location
 from app.models.customer import Customer
 from app.models.resource import Resource
 from app.models.service import Service, calculate_amount_due
@@ -29,6 +29,85 @@ def _get_business(slug: str, db: Session) -> Business:
     if business is None:
         raise HTTPException(status_code=404, detail="Business not found")
     return business
+
+
+def _build_location_groups(
+    business_id: int,
+    db: Session,
+    service_staff: list | None = None,
+    service_resources: list | None = None,
+) -> list[dict]:
+    """Return a list of location dicts with active staff and resources.
+
+    Each entry has the shape::
+
+        {"location": Location, "staff": [Staff, ...], "resources": [Resource, ...]}
+
+    Only locations that have at least one active staff member or resource are
+    included.  Staff and resources not assigned to any location are collected
+    under a synthetic ``None``-location entry appended at the end (if any exist).
+
+    When *service_staff* or *service_resources* are provided (service-specific
+    overrides), those lists are used instead of querying all active staff/resources
+    for the business.
+    """
+    locations = db.scalars(
+        select(Location)
+        .where(Location.business_id == business_id)
+        .options(
+            selectinload(Location.staff_members),
+            selectinload(Location.resources),
+        )
+        .order_by(Location.name)
+    ).all()
+
+    # Determine the full set of available staff and resources.
+    if service_staff is not None:
+        all_staff = list(service_staff)
+    else:
+        all_staff = list(
+            db.scalars(
+                select(Staff)
+                .where(Staff.business_id == business_id, Staff.is_active.is_(True))
+                .order_by(Staff.name)
+            ).all()
+        )
+
+    if service_resources is not None:
+        all_resources = list(service_resources)
+    else:
+        all_resources = list(
+            db.scalars(
+                select(Resource)
+                .where(Resource.business_id == business_id, Resource.is_active.is_(True))
+                .order_by(Resource.name)
+            ).all()
+        )
+
+    active_staff_ids = {s.id for s in all_staff}
+    active_resource_ids = {r.id for r in all_resources}
+
+    groups: list[dict] = []
+    assigned_staff_ids: set[int] = set()
+    assigned_resource_ids: set[int] = set()
+
+    for loc in locations:
+        loc_staff = [s for s in loc.staff_members if s.id in active_staff_ids]
+        loc_resources = [r for r in loc.resources if r.id in active_resource_ids]
+        if loc_staff or loc_resources:
+            groups.append({"location": loc, "staff": loc_staff, "resources": loc_resources})
+            assigned_staff_ids.update(s.id for s in loc_staff)
+            assigned_resource_ids.update(r.id for r in loc_resources)
+
+    # Collect unassigned active staff/resources into a catch-all group.
+    unassigned_staff = [s for s in all_staff if s.id not in assigned_staff_ids]
+    unassigned_resources = [r for r in all_resources if r.id not in assigned_resource_ids]
+    if unassigned_staff or unassigned_resources:
+        groups.append(
+            {"location": None, "staff": unassigned_staff, "resources": unassigned_resources}
+        )
+
+    return groups
 
 
 # ------------------------------------------------------------------
@@ -61,17 +140,9 @@ def slot_page(
     if service is None or service.business_id != business.id:
         raise HTTPException(status_code=404, detail="Service not found")
     today = date.today().isoformat()
-    # Use service-specific staff/resources if configured; fall back to all business ones.
-    staff = service.staff_members if service.staff_members else db.scalars(
-        select(Staff)
-        .where(Staff.business_id == business.id, Staff.is_active.is_(True))
-        .order_by(Staff.name)
-    ).all()
-    resources = service.resources if service.resources else db.scalars(
-        select(Resource)
-        .where(Resource.business_id == business.id, Resource.is_active.is_(True))
-        .order_by(Resource.name)
-    ).all()
+    svc_staff = service.staff_members if service.staff_members else None
+    svc_resources = service.resources if service.resources else None
+    location_groups = _build_location_groups(business.id, db, svc_staff, svc_resources)
     return templates.TemplateResponse(
         request,
         "public/slot.html",
@@ -79,8 +150,7 @@ def slot_page(
             "business": business,
             "service": service,
             "today": today,
-            "staff": staff,
-            "resources": resources,
+            "location_groups": location_groups,
         },
     )
 
@@ -163,17 +233,9 @@ def details_page(
     duration_minutes = service.duration_minutes
     amount_due = calculate_amount_due(service.unit_price, service.price_unit, duration_minutes)
 
-    # Use service-specific staff/resources if configured; fall back to all business ones.
-    staff = service.staff_members if service.staff_members else db.scalars(
-        select(Staff)
-        .where(Staff.business_id == business.id, Staff.is_active.is_(True))
-        .order_by(Staff.name)
-    ).all()
-    resources = service.resources if service.resources else db.scalars(
-        select(Resource)
-        .where(Resource.business_id == business.id, Resource.is_active.is_(True))
-        .order_by(Resource.name)
-    ).all()
+    svc_staff = service.staff_members if service.staff_members else None
+    svc_resources = service.resources if service.resources else None
+    location_groups = _build_location_groups(business.id, db, svc_staff, svc_resources)
 
     return templates.TemplateResponse(
         request,
@@ -188,8 +250,7 @@ def details_page(
             "starts_at_iso": starts_at_dt.strftime("%Y-%m-%dT%H:%M:%S"),
             "ends_at": ends_at_dt,
             "ends_at_local": ends_at_dt.strftime("%Y-%m-%dT%H:%M"),
-            "staff": staff,
-            "resources": resources,
+            "location_groups": location_groups,
             "extras": service.extras,
             "notes_prompt": service.notes_prompt or "Notes (optional)",
             "amount_due": amount_due,
@@ -213,6 +274,7 @@ def confirm_booking(
     phone: str = Form(""),
     notes: str = Form(""),
     staff_id: int | None = Form(None),
+    location_id: int | None = Form(None),
     resource_ids: list[int] = Form(default=[]),
     extra_ids: list[int] = Form(default=[]),
     db: Session = Depends(get_db_session),
@@ -260,6 +322,7 @@ def confirm_booking(
         business_id=business.id,
         service_id=service.id,
         customer_id=customer.id,
+        location_id=location_id,
         starts_at=starts_at_dt,
         ends_at=ends_at_dt,
         notes=notes or None,

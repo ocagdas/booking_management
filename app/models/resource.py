@@ -6,12 +6,12 @@ from typing import TYPE_CHECKING
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.associations import service_resources
+from app.models.associations import resource_locations, service_resources
 from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.booking import BookingResource
-    from app.models.business import Business
+    from app.models.business import Business, Location
     from app.models.service import Service
 
 
@@ -41,6 +41,9 @@ class Resource(Base):
     )
 
     business: Mapped[Business] = relationship(back_populates="resources")
+    locations: Mapped[list[Location]] = relationship(
+        secondary=resource_locations, back_populates="resources"
+    )
     booking_resources: Mapped[list[BookingResource]] = relationship(back_populates="resource")
     services: Mapped[list[Service]] = relationship(
         secondary=service_resources, back_populates="resources"

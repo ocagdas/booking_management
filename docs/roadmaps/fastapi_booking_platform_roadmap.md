@@ -771,6 +771,21 @@ Acceptance criteria:
 | Admin rejects from page | Booking rejected |
 | Audit log visible | Works |
 
+Planned addition — Staff and Resource Availability Schedules:
+
+```text
+Staff and resources need a means to define when they are available.
+Three modes must be supported:
+
+1. Periodic — repeating weekly schedule (e.g. Mon–Fri 09:00–17:00).
+2. Recurring — repeating on a custom cadence (e.g. every other Saturday).
+3. Fully custom — arbitrary date/time windows with no recurrence pattern.
+
+The availability engine must use these schedules to block slots where a
+staff member or resource is not available, in addition to blocking slots
+already occupied by existing bookings.
+```
+
 ---
 
 ### Phase 7: Promotions and vouchers

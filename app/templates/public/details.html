@@ -22,30 +22,111 @@
   <label for="ends_at">End time</label>
   <input id="ends_at" type="datetime-local" name="ends_at" value="{{ ends_at_local }}" required>
 
-  {% if staff %}
-  <fieldset>
-    <legend>Staff member <span style="font-weight:normal;color:#888">(optional)</span></legend>
-    {% for s in staff %}
-    <label style="display:block;margin-bottom:.3rem">
-      <input type="radio" name="staff_id" value="{{ s.id }}"> {{ s.name }}
-    </label>
-    {% endfor %}
-  </fieldset>
-  {% endif %}
+  {% if location_groups %}
+  <fieldset style="margin-top:1rem;border:1px solid #ddd;border-radius:6px;padding:1rem">
+    <legend style="font-weight:600;padding:0 .5rem">Location, Staff &amp; Resources</legend>
 
-  {% if resources %}
-  <fieldset>
-    <legend>Resources <span style="font-weight:normal;color:#888">(optional — select one or more)</span></legend>
-    {% for r in resources %}
-    <label style="display:block;margin-bottom:.3rem">
-      <input type="checkbox" name="resource_ids" value="{{ r.id }}"> {{ r.name }}
-    </label>
+    {% for group in location_groups %}
+    {% set loc_id = group.location.id if group.location else "none" %}
+    <div class="loc-group" style="border:1px solid #e2e8f0;border-radius:6px;margin-bottom:.75rem;overflow:hidden">
+      {# Location header row #}
+      <div style="display:flex;align-items:center;justify-content:space-between;
+                  background:#f8fafc;padding:.6rem 1rem;cursor:pointer"
+           onclick="toggleGroup('loc-{{ loc_id }}')">
+        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin:0">
+          {% if group.location %}
+          <input type="radio" name="location_id" value="{{ group.location.id }}"
+                 id="loc-radio-{{ loc_id }}"
+                 onclick="event.stopPropagation();showGroup('loc-{{ loc_id }}')">
+          📍 {{ group.location.name }}
+          {% if group.location.address %}
+          <span style="font-weight:normal;color:#64748b;font-size:.9em"> — {{ group.location.address }}</span>
+          {% endif %}
+          {% else %}
+          <span>🌐 No location assigned</span>
+          {% endif %}
+        </label>
+        <div style="display:flex;gap:.4rem;align-items:center">
+          <button type="button" class="btn-sm" onclick="event.stopPropagation();selectGroup('loc-{{ loc_id }}')">Select All</button>
+          <button type="button" class="btn-sm" onclick="event.stopPropagation();deselectGroup('loc-{{ loc_id }}')">Deselect All</button>
+          <span class="toggle-icon" id="icon-loc-{{ loc_id }}">▶</span>
+        </div>
+      </div>
+
+      {# Collapsible body — folded by default #}
+      <div id="loc-{{ loc_id }}" style="display:none;padding:.75rem 1rem">
+        {% if group.staff %}
+        <div style="margin-bottom:.5rem">
+          <strong style="font-size:.85em;color:#64748b;text-transform:uppercase;letter-spacing:.05em">Staff</strong>
+          {% for s in group.staff %}
+          <label style="display:flex;align-items:center;gap:.5rem;margin-top:.3rem">
+            <input type="radio" name="staff_id" value="{{ s.id }}"
+                   class="loc-{{ loc_id }}-item">
+            {{ s.name }}
+          </label>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if group.resources %}
+        <div>
+          <strong style="font-size:.85em;color:#64748b;text-transform:uppercase;letter-spacing:.05em">Resources</strong>
+          {% for r in group.resources %}
+          <label style="display:flex;align-items:center;gap:.5rem;margin-top:.3rem">
+            <input type="checkbox" name="resource_ids" value="{{ r.id }}"
+                   class="loc-{{ loc_id }}-item loc-{{ loc_id }}-resource">
+            {{ r.name }}{% if r.count > 1 %} <span style="color:#888;font-size:.9em">(×{{ r.count }})</span>{% endif %}
+          </label>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
     {% endfor %}
   </fieldset>
+
+  <script>
+  function toggleGroup(id) {
+    var el = document.getElementById(id);
+    var icon = document.getElementById('icon-' + id);
+    if (el.style.display === 'none') {
+      el.style.display = 'block';
+      icon.textContent = '▼';
+    } else {
+      el.style.display = 'none';
+      icon.textContent = '▶';
+    }
+  }
+  function showGroup(id) {
+    var el = document.getElementById(id);
+    var icon = document.getElementById('icon-' + id);
+    el.style.display = 'block';
+    icon.textContent = '▼';
+  }
+  function selectGroup(id) {
+    showGroup(id);
+    document.querySelectorAll('.' + id + '-resource').forEach(function(cb) {
+      cb.checked = true;
+    });
+    var radio = document.getElementById('loc-radio-' + id.replace('loc-',''));
+    if (radio) radio.checked = true;
+  }
+  function deselectGroup(id) {
+    document.querySelectorAll('.' + id + '-resource').forEach(function(cb) {
+      cb.checked = false;
+    });
+    // Deselect staff radio for this location
+    document.querySelectorAll('.' + id + '-item[type="radio"]').forEach(function(rb) {
+      rb.checked = false;
+    });
+    var radio = document.getElementById('loc-radio-' + id.replace('loc-',''));
+    if (radio) radio.checked = false;
+  }
+  </script>
   {% endif %}
 
   {% if extras %}
-  <fieldset>
+  <fieldset style="margin-top:1rem">
     <legend>Extras</legend>
     {% for e in extras %}
     <label style="display:block;margin-bottom:.3rem">

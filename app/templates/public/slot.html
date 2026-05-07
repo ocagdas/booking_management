@@ -5,18 +5,20 @@
 <h1>{{ service.name }}</h1>
 <p class="subtitle">Choose a date and time for your appointment ({{ service.duration_minutes }} min).</p>
 
-{% if staff or resources %}
+{% if location_groups %}
 <div class="card" style="margin-bottom:1rem">
-  {% if staff %}
-  <p style="margin-bottom:.5rem"><strong>Available staff:</strong>
-    {% for s in staff %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}
-  </p>
-  {% endif %}
-  {% if resources %}
-  <p style="margin:0"><strong>Resources:</strong>
-    {% for r in resources %}{{ r.name }}{% if r.count > 1 %} (×{{ r.count }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
-  </p>
-  {% endif %}
+  {% for group in location_groups %}
+  <div style="margin-bottom:.5rem">
+    <strong>{% if group.location %}📍 {{ group.location.name }}{% else %}🌐 No location{% endif %}:</strong>
+    {% if group.staff %}
+    Staff: {% for s in group.staff %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+    {% endif %}
+    {% if group.staff and group.resources %} &nbsp;|&nbsp; {% endif %}
+    {% if group.resources %}
+    Resources: {% for r in group.resources %}{{ r.name }}{% if r.count > 1 %} (×{{ r.count }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+    {% endif %}
+  </div>
+  {% endfor %}
 </div>
 {% endif %}
 

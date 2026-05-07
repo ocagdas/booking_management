@@ -44,6 +44,42 @@ service_staff = sa.Table(
     ),
 )
 
+# Staff ↔ Locations: a staff member can be assigned to multiple locations.
+staff_locations = sa.Table(
+    "staff_locations",
+    Base.metadata,
+    sa.Column(
+        "staff_id",
+        sa.Integer,
+        sa.ForeignKey("staff.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    sa.Column(
+        "location_id",
+        sa.Integer,
+        sa.ForeignKey("locations.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+# Resources ↔ Locations: a resource can be assigned to multiple locations.
+resource_locations = sa.Table(
+    "resource_locations",
+    Base.metadata,
+    sa.Column(
+        "resource_id",
+        sa.Integer,
+        sa.ForeignKey("resources.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    sa.Column(
+        "location_id",
+        sa.Integer,
+        sa.ForeignKey("locations.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
 # Staff ↔ Roles: many-to-many — a staff member can hold multiple roles.
 staff_roles = sa.Table(
     "staff_roles",

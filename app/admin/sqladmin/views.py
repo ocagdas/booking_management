@@ -72,8 +72,17 @@ class StaffAdmin(ModelView, model=Staff):
     column_list = [Staff.id, Staff.name, Staff.business, Staff.email, Staff.is_active]
     column_searchable_list = [Staff.name, Staff.email]
     column_sortable_list = [Staff.id, Staff.name]
-    # Expose M2M roles in the create/edit form.
+    # Expose M2M roles and locations in the create/edit form.
     form_include_pk = True
+    form_columns = [
+        Staff.business,
+        Staff.name,
+        Staff.email,
+        Staff.phone,
+        Staff.is_active,
+        Staff.roles,
+        Staff.locations,
+    ]
 
 
 class ResourceAdmin(ModelView, model=Resource):
@@ -83,6 +92,14 @@ class ResourceAdmin(ModelView, model=Resource):
     column_list = [Resource.id, Resource.name, Resource.business, Resource.resource_type, Resource.count, Resource.is_active]
     column_searchable_list = [Resource.name]
     column_sortable_list = [Resource.id, Resource.name]
+    form_columns = [
+        Resource.business,
+        Resource.name,
+        Resource.resource_type,
+        Resource.count,
+        Resource.is_active,
+        Resource.locations,
+    ]
 
 
 class CustomerAdmin(ModelView, model=Customer):
