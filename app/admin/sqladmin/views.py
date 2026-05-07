@@ -23,7 +23,11 @@ class LocationAdmin(ModelView, model=Location):
     name = "Location"
     name_plural = "Locations"
     details_template = "sqladmin/model_details.html"
-    column_list = [Location.id, Location.name, Location.business, Location.address]
+    list_template = "sqladmin/location_list.html"
+    # Sort by business first so the grouping in the custom template is correct.
+    column_default_sort = [(Location.business_id, False), (Location.name, False)]
+    # Exclude `business` from the column list — it appears as a group header row.
+    column_list = [Location.id, Location.name, Location.address]
     column_searchable_list = [Location.name]
     column_sortable_list = [Location.id, Location.name]
 
@@ -31,6 +35,7 @@ class LocationAdmin(ModelView, model=Location):
 class ServiceAdmin(ModelView, model=Service):
     name = "Service"
     name_plural = "Services"
+    category = "Service Management"
     details_template = "sqladmin/model_details.html"
     form_args = {"is_active": {"default": True}}
     column_list = [
@@ -155,8 +160,9 @@ class BookingResourceAdmin(ModelView, model=BookingResource):
 
 
 class ServiceExtraAdmin(ModelView, model=ServiceExtra):
-    name = "Service Extra"
-    name_plural = "Service Extras"
+    name = "Extra"
+    name_plural = "Extras"
+    category = "Service Management"
     details_template = "sqladmin/model_details.html"
     column_list = [
         ServiceExtra.id,

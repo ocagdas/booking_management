@@ -15,7 +15,7 @@ from app.models.business import Business, Location
 from app.models.customer import Customer
 from app.models.resource import Resource
 from app.models.service import ApprovalMode, Service
-from app.models.staff import Staff, StaffRole
+from app.models.staff import Role, Staff
 
 
 # ---------------------------------------------------------------------------
@@ -190,18 +190,22 @@ def test_booking_status_choices_enforced(db_session) -> None:
 
 
 def test_staff_role_linked_to_staff(db_session) -> None:
-    """StaffRole is linked to a staff member."""
+    """A Role can be created and assigned to a staff member via M2M."""
     business = _make_business(db_session, name="Clinic 2", slug="clinic-2")
     staff = Staff(business_id=business.id, name="Dr Smith")
     db_session.add(staff)
     db_session.flush()
 
-    role = StaffRole(staff_id=staff.id, role="practitioner")
+    role = Role(business_id=business.id, name="practitioner")
     db_session.add(role)
     db_session.flush()
 
+    staff.roles.append(role)
+    db_session.flush()
+
     assert role.id is not None
-    assert role.staff_id == staff.id
+    assert role in staff.roles
+    assert staff in role.staff_members
 
 
 def test_audit_log_created(db_session) -> None:
