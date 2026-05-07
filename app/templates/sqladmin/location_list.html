@@ -35,7 +35,7 @@
         <td colspan="{{ model_view._list_prop_names | length + 2 }}"
             style="font-weight:600; padding:.45rem 1rem;">
           {% if biz %}
-          <a href="/admin/sql/business/details?pk={{ biz.id }}"
+          <a href="{{ request.url_for('admin:details', identity='business') }}?pk={{ biz.id }}"
              style="color:#4a6cf7; text-decoration:none;">
             🏢 {{ biz.name }}
           </a>
