@@ -30,7 +30,8 @@ def check_resource_available(
 
     A resource with ``count=N`` can accommodate N concurrent bookings before
     it is considered fully booked.  When *requested_count* > 1 the resource
-    must have at least that many units free.
+    must have at least that many units free simultaneously (e.g. a customer
+    requesting 3 tables requires 3 spare units of capacity, not just 1).
     """
     from app.models.resource import Resource  # local import avoids circular
 

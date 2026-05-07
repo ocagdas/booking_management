@@ -112,7 +112,10 @@ def _extras_for_staff(
     """Filter extras to those the given staff member can offer.
 
     If *staff* is None or the staff member has no explicit extras assigned,
-    all extras are returned (default-all semantics).
+    all extras are returned (default-all semantics).  This design means that
+    small teams where every staff member can offer every extra require no
+    extra configuration — the restriction table only needs to be populated
+    when a particular staff member's offerings differ from the full list.
     """
     if staff is None or not staff.extras:
         return service_extras

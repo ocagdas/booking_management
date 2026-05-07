@@ -85,6 +85,10 @@ def upgrade() -> None:
     # ------------------------------------------------------------------
     # Data migration: fill NULL location_id with the business's first location
     # ------------------------------------------------------------------
+    # Note: if a business has no locations at all, its bookings will remain
+    # with location_id = NULL.  This is intentional — the column is nullable
+    # and those bookings are unaffected until a location is created for that
+    # business.
     op.execute(
         """
         UPDATE bookings
