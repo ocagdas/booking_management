@@ -1463,6 +1463,257 @@ Acceptance tests:
 
 ---
 
+### Phase 14: Dashboards and reporting
+
+Goal:
+
+```text
+Give business owners queryable summaries of bookings, earnings, staff activity and resource usage over configurable time periods.
+```
+
+Infrastructure notes:
+
+```text
+Start with server-rendered Jinja2 + HTMX pages showing pre-computed summaries.
+Charts can be simple HTML progress bars or a lightweight JavaScript chart library (e.g. Chart.js via CDN) included without a build step.
+Move to a dedicated reporting service or BI tool only if query complexity demands it.
+```
+
+Report types:
+
+| Report | Dimensions |
+|---|---|
+| Bookings over time | Count by day, week, month |
+| Revenue over time | Sum of amount_due by period |
+| Booking status breakdown | Confirmed, cancelled, no-show counts per period |
+| Staff utilisation | Bookings per staff member per period |
+| Resource utilisation | Bookings per resource per period |
+| Earnings by service | Revenue per service per period |
+| Top customers | Booking count and spend per customer |
+
+Filters:
+
+| Filter | Options |
+|---|---|
+| Period | Today, this week, this month, last 30 days, custom range |
+| Business | All or specific business |
+| Location | All or specific location |
+| Service | All or specific service |
+
+Implementation plan:
+
+| Layer | Approach |
+|---|---|
+| Queries | Service module functions using SQLAlchemy aggregations |
+| API | Internal admin-only FastAPI routes returning summary data |
+| UI | HTMX admin pages with date-range pickers and period tabs |
+| Caching | Redis cache on expensive aggregations, invalidated on booking change |
+
+Acceptance criteria:
+
+| Test | Expected |
+|---|---|
+| Booking count query for period | Returns correct count |
+| Revenue sum for period | Returns correct total |
+| Staff utilisation query | Returns bookings per staff member |
+| Resource utilisation query | Returns bookings per resource |
+| Admin page loads summary | Works with HTMX |
+
+---
+
+### Phase 15: Authentication, SSO and bootstrap flow
+
+Goal:
+
+```text
+Allow secure login for admin and staff users. Bootstrap the system with a default admin account that can then be linked to email/password or SSO.
+```
+
+Bootstrap flow:
+
+```text
+System starts with one default admin user (no password, no SSO)
+Admin visits /setup to claim the account
+Admin chooses email/password or SSO provider to link
+Once linked, /setup is locked and cannot be accessed again
+Admin can then invite staff
+```
+
+Authentication options:
+
+| Method | Use |
+|---|---|
+| Email and password | Simple login with hashed password |
+| Google OAuth | SSO via Google |
+| Microsoft OAuth | SSO via Microsoft Entra |
+| Magic link | Passwordless email link login |
+
+Models:
+
+```text
+User
+UserCredential (email + hashed password)
+OAuthAccount (provider, provider_user_id, access token)
+UserSession
+```
+
+Rules:
+
+| Rule | Required |
+|---|---:|
+| Passwords hashed with bcrypt or argon2 | Yes |
+| OAuth tokens never stored in plaintext | Yes |
+| Sessions short-lived with refresh | Yes |
+| Setup route locked after first admin claim | Yes |
+| Staff linked to User account | Yes |
+| Role-based access control | Yes |
+
+Roles:
+
+| Role | Access |
+|---|---|
+| platform_admin | Full access to all businesses |
+| business_admin | Full access to own business |
+| staff | Access to own schedule and booking actions |
+
+Acceptance criteria:
+
+| Test | Expected |
+|---|---|
+| /setup not accessible once admin linked | Locked |
+| Email/password login | Works |
+| OAuth login | Works |
+| Staff login with invited account | Works |
+| Wrong password | Rejected |
+| Expired session | Redirected to login |
+
+---
+
+### Phase 16: Staff invitations
+
+Goal:
+
+```text
+Allow business admin to create staff records and send email invitations to register with email/password or SSO.
+```
+
+Invitation flow:
+
+```text
+Admin creates staff record with name and email
+System generates a unique invitation token
+System sends invitation email with registration link
+Staff member clicks link and registers with email/password or SSO
+Invitation token is consumed and cannot be reused
+Staff account is linked to their User record
+```
+
+Models:
+
+```text
+StaffInvitation
+  staff_id
+  token (unique, hashed)
+  invited_by (user_id)
+  expires_at
+  accepted_at
+  status (pending, accepted, expired, revoked)
+```
+
+Email content:
+
+```text
+Subject: You have been invited to join {business_name}
+Body: Link to accept invitation and register
+Expiry: 7 days
+```
+
+Acceptance criteria:
+
+| Test | Expected |
+|---|---|
+| Admin invites staff | Invitation row created, email queued |
+| Staff clicks valid link | Registration page shown |
+| Staff registers | Account linked, invitation consumed |
+| Same link used twice | Rejected |
+| Expired link | Rejected |
+| Admin revokes invitation | Link rejected |
+
+---
+
+### Phase 17: Appointment reminders and SMS
+
+Goal:
+
+```text
+Send reminder emails and SMS to customers before their appointment. Allow businesses to configure reminder timing and channel.
+```
+
+Channels:
+
+| Channel | Provider |
+|---|---|
+| Email | Postmark, SendGrid or Mailgun |
+| SMS | Twilio |
+
+Reminder triggers:
+
+| Trigger | Default timing |
+|---|---|
+| 24 hours before appointment | Day before reminder |
+| 2 hours before appointment | Same day reminder |
+| On booking confirmation | Immediate confirmation |
+| On booking cancellation | Immediate cancellation notice |
+
+Business config example:
+
+```yaml
+notifications:
+  email_reminders: true
+  sms_reminders: true
+  reminder_hours_before: [24, 2]
+  sender_email: "bookings@abcgarage.co.uk"
+  sender_name: "ABC Garage"
+  sms_from: "+447700900000"
+```
+
+Implementation plan:
+
+| Layer | Approach |
+|---|---|
+| Scheduling | RQ scheduled jobs via Redis |
+| Email | Postmark or SendGrid HTTP API |
+| SMS | Twilio REST API |
+| Templates | Jinja2 templates stored per event type |
+| Retry | RQ retry on failure with backoff |
+| Audit | Notification record updated with sent status |
+
+Notification model additions:
+
+```text
+Notification
+  channel (email, sms)
+  event_type (confirmation, reminder_24h, reminder_2h, cancellation)
+  recipient_email
+  recipient_phone
+  sent_at
+  status (pending, sent, failed)
+  provider_message_id
+```
+
+Acceptance criteria:
+
+| Test | Expected |
+|---|---|
+| Booking confirmed | Confirmation email queued |
+| 24h before booking | Reminder email and SMS queued |
+| 2h before booking | Reminder email and SMS queued |
+| Booking cancelled | Cancellation notice queued |
+| SMS disabled in config | No SMS sent |
+| Notification record updated on send | Works |
+
+---
+
 ## 28. Final instruction for Copilot
 
 ```text
