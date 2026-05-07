@@ -1,4 +1,7 @@
 from sqladmin import ModelView
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
+from starlette.requests import Request
 
 from app.models.audit import AuditLog
 from app.models.booking import Booking, BookingExtra, BookingResource, BookingStaff
@@ -30,6 +33,13 @@ class LocationAdmin(ModelView, model=Location):
     column_list = [Location.id, Location.name, Location.address]
     column_searchable_list = [Location.name]
     column_sortable_list = [Location.id, Location.name]
+
+    def list_query(self, request: Request):
+        # Explicitly eager-load the business relationship so the custom list
+        # template can access row.business on detached instances after the
+        # session closes (sqladmin only selectinloads relations listed in
+        # column_list, which intentionally excludes business here).
+        return select(Location).options(joinedload(Location.business))
 
 
 class ServiceAdmin(ModelView, model=Service):
