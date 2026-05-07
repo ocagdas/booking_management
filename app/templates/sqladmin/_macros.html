@@ -1,14 +1,15 @@
 {% macro menu_category(menu, request) %}
 {% if menu.is_visible(request) and menu.is_accessible(request) %}
-<li class="nav-item dropdown">
-  <a class="nav-link dropdown-toggle {% if menu.is_active(request) %}active{% endif %}" data-bs-toggle="dropdown"
-    href="#">
+{% set cat_active = menu.is_active(request) %}
+<li class="nav-item dropdown {% if cat_active %}show{% endif %}">
+  <a class="nav-link dropdown-toggle {% if cat_active %}active{% endif %}" data-bs-toggle="dropdown"
+    href="#" {% if cat_active %}aria-expanded="true"{% endif %}>
     <span class="nav-link-icon d-md-none d-lg-inline-block">
       {% if menu.icon %}<i class="{{ menu.icon }}"></i>{% endif %}
     </span>
     <span class="nav-link-title">{{ menu.display_name }}</span>
   </a>
-  <div class="dropdown-menu">
+  <div class="dropdown-menu {% if cat_active %}show{% endif %}">
     <div class="dropdown-menu-columns">
       <div class="dropdown-menu-column">
         {% for sub_menu in menu.children %}

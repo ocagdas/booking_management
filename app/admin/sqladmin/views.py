@@ -62,6 +62,12 @@ class RoleAdmin(ModelView, model=Role):
     column_list = [Role.id, Role.business, Role.name, Role.description, Role.created_at]
     column_searchable_list = [Role.name]
     column_sortable_list = [Role.id, Role.name]
+    # Exclude staff_members from the form — roles are linked from the Staff form instead.
+    form_columns = [
+        Role.business,
+        Role.name,
+        Role.description,
+    ]
 
 
 class StaffAdmin(ModelView, model=Staff):
