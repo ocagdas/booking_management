@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from app.models.customer import Customer
     from app.models.resource import Resource
     from app.models.service import Service
-    from app.models.staff import Staff
+    from app.models.staff import Role, Staff
 
 
 def _now() -> datetime:
@@ -41,6 +41,7 @@ class Business(Base):
     locations: Mapped[list[Location]] = relationship(back_populates="business")
     services: Mapped[list[Service]] = relationship(back_populates="business")
     staff: Mapped[list[Staff]] = relationship(back_populates="business")
+    roles: Mapped[list[Role]] = relationship(back_populates="business")
     resources: Mapped[list[Resource]] = relationship(back_populates="business")
     customers: Mapped[list[Customer]] = relationship(back_populates="business")
     bookings: Mapped[list[Booking]] = relationship(back_populates="business")

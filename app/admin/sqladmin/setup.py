@@ -12,10 +12,10 @@ from app.admin.sqladmin.views import (
     CustomerAdmin,
     LocationAdmin,
     ResourceAdmin,
+    RoleAdmin,
     ServiceAdmin,
     ServiceExtraAdmin,
     StaffAdmin,
-    StaffRoleAdmin,
 )
 
 
@@ -25,8 +25,8 @@ def setup_sqladmin(app: FastAPI) -> None:
     admin.add_view(LocationAdmin)
     admin.add_view(ServiceAdmin)
     admin.add_view(ServiceExtraAdmin)
+    admin.add_view(RoleAdmin)
     admin.add_view(StaffAdmin)
-    admin.add_view(StaffRoleAdmin)
     admin.add_view(ResourceAdmin)
     admin.add_view(CustomerAdmin)
     admin.add_view(BookingAdmin)

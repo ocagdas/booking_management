@@ -7,7 +7,7 @@ from app.models.customer import Customer
 from app.models.resource import Resource
 from app.models.service import Service
 from app.models.service_extra import ServiceExtra
-from app.models.staff import Staff, StaffRole
+from app.models.staff import Role, Staff
 
 
 class BusinessAdmin(ModelView, model=Business):
@@ -49,21 +49,26 @@ class ServiceAdmin(ModelView, model=Service):
     form_include_pk = True
 
 
+class RoleAdmin(ModelView, model=Role):
+    name = "Role"
+    name_plural = "Roles"
+    category = "Staff Management"
+    details_template = "sqladmin/model_details.html"
+    column_list = [Role.id, Role.business, Role.name, Role.description, Role.created_at]
+    column_searchable_list = [Role.name]
+    column_sortable_list = [Role.id, Role.name]
+
+
 class StaffAdmin(ModelView, model=Staff):
     name = "Staff"
     name_plural = "Staff"
+    category = "Staff Management"
     details_template = "sqladmin/model_details.html"
     column_list = [Staff.id, Staff.name, Staff.business, Staff.email, Staff.is_active]
     column_searchable_list = [Staff.name, Staff.email]
     column_sortable_list = [Staff.id, Staff.name]
-
-
-class StaffRoleAdmin(ModelView, model=StaffRole):
-    name = "Staff Role"
-    name_plural = "Staff Roles"
-    details_template = "sqladmin/model_details.html"
-    column_list = [StaffRole.id, StaffRole.staff_member, StaffRole.role, StaffRole.created_at]
-    column_searchable_list = [StaffRole.role]
+    # Expose M2M roles in the create/edit form.
+    form_include_pk = True
 
 
 class ResourceAdmin(ModelView, model=Resource):

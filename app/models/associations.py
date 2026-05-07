@@ -43,3 +43,21 @@ service_staff = sa.Table(
         primary_key=True,
     ),
 )
+
+# Staff ↔ Roles: many-to-many — a staff member can hold multiple roles.
+staff_roles = sa.Table(
+    "staff_roles",
+    Base.metadata,
+    sa.Column(
+        "staff_id",
+        sa.Integer,
+        sa.ForeignKey("staff.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    sa.Column(
+        "role_id",
+        sa.Integer,
+        sa.ForeignKey("roles.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)

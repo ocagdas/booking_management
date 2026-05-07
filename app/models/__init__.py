@@ -13,4 +13,4 @@ from app.models.customer import Customer as Customer
 from app.models.resource import Resource as Resource
 from app.models.service import ApprovalMode as ApprovalMode, PriceUnit as PriceUnit, Service as Service
 from app.models.service_extra import ServiceExtra as ServiceExtra
-from app.models.staff import Staff as Staff, StaffRole as StaffRole
+from app.models.staff import Role as Role, Staff as Staff
