@@ -128,8 +128,8 @@ class BookingAdmin(ModelView, model=Booking):
 
 
 class BookingStaffAdmin(ModelView, model=BookingStaff):
-    name = "Booking Staff"
-    name_plural = "Booking Staff"
+    name = "Staff"
+    name_plural = "Staff"
     category = "Booking Management"
     details_template = "sqladmin/model_details.html"
     column_list = [BookingStaff.id, BookingStaff.booking, BookingStaff.staff_member]
@@ -139,8 +139,8 @@ class BookingStaffAdmin(ModelView, model=BookingStaff):
 
 
 class BookingResourceAdmin(ModelView, model=BookingResource):
-    name = "Booking Resource"
-    name_plural = "Booking Resources"
+    name = "Resource"
+    name_plural = "Resources"
     category = "Booking Management"
     details_template = "sqladmin/model_details.html"
     column_list = [BookingResource.id, BookingResource.booking, BookingResource.resource]
@@ -165,8 +165,8 @@ class ServiceExtraAdmin(ModelView, model=ServiceExtra):
 
 
 class BookingExtraAdmin(ModelView, model=BookingExtra):
-    name = "Booking Extra"
-    name_plural = "Booking Extras"
+    name = "Extra"
+    name_plural = "Extras"
     category = "Booking Management"
     details_template = "sqladmin/model_details.html"
     column_list = [BookingExtra.id, BookingExtra.booking, BookingExtra.extra]
