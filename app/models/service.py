@@ -100,6 +100,8 @@ class Service(Base):
         sa.Numeric(10, 2), nullable=False, default=Decimal("0.00")
     )
     notes_prompt: Mapped[str | None] = mapped_column(sa.String(500), nullable=True)
+    # Minimum booking duration; a booking cannot be shorter than this.
+    min_duration_minutes: Mapped[int | None] = mapped_column(sa.Integer, nullable=True)
     approval_mode: Mapped[ApprovalMode] = mapped_column(
         sa.Enum(ApprovalMode, name="approval_mode"),
         nullable=False,

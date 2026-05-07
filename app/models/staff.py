@@ -6,13 +6,14 @@ from typing import TYPE_CHECKING
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.associations import service_staff, staff_locations, staff_roles
+from app.models.associations import service_staff, staff_extras, staff_locations, staff_roles
 from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.booking import BookingStaff
     from app.models.business import Business, Location
     from app.models.service import Service
+    from app.models.service_extra import ServiceExtra
 
 
 def _now() -> datetime:
@@ -79,4 +80,9 @@ class Staff(Base):
     booking_staff: Mapped[list[BookingStaff]] = relationship(back_populates="staff_member")
     services: Mapped[list[Service]] = relationship(
         secondary=service_staff, back_populates="staff_members"
+    )
+    # Extras this staff member is explicitly permitted to offer.
+    # Empty → can offer all extras for any service they perform.
+    extras: Mapped[list[ServiceExtra]] = relationship(
+        secondary=staff_extras, back_populates="staff_members"
     )

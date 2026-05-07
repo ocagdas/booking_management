@@ -24,11 +24,13 @@ def check_resource_available(
     starts_at: datetime,
     ends_at: datetime,
     exclude_booking_id: int | None = None,
+    requested_count: int = 1,
 ) -> bool:
     """Return True if the resource has remaining capacity for the time window.
 
     A resource with ``count=N`` can accommodate N concurrent bookings before
-    it is considered fully booked.
+    it is considered fully booked.  When *requested_count* > 1 the resource
+    must have at least that many units free.
     """
     from app.models.resource import Resource  # local import avoids circular
 
@@ -45,7 +47,7 @@ def check_resource_available(
             Booking.ends_at > starts_at,
         )
     ) or 0
-    return concurrent < capacity
+    return (capacity - concurrent) >= requested_count
 
 
 def check_staff_available(
@@ -75,6 +77,8 @@ def is_business_slot_available(
     starts_at: datetime,
     ends_at: datetime,
     staff_ids: list[int] | None = None,
+    resource_ids: list[int] | None = None,
+    resource_count: int = 1,
 ) -> bool:
     """Return True if the business can accept at least one more booking.
 
@@ -82,9 +86,13 @@ def is_business_slot_available(
     those specific staff members — the slot is available when at least one of
     the selected staff members has no overlapping active booking.
 
-    * If the business has active resources configured (and no staff filter is
-      applied), the slot is available when at least one resource still has
-      remaining capacity.
+    When *resource_ids* is provided (non-empty), only those specific resources
+    are checked.  *resource_count* specifies how many units of each resource
+    must be free simultaneously (default 1).
+
+    * If the business has active resources configured (and no staff/resource
+      filter is applied), the slot is available when at least one resource
+      still has remaining capacity.
     * If no resources are configured, fall back to a one-booking-per-slot
       limit (suitable for simple appointment businesses).
     """
@@ -96,6 +104,13 @@ def is_business_slot_available(
             for sid in staff_ids
         )
 
+    if resource_ids:
+        return any(
+            check_resource_available(session, rid, starts_at, ends_at,
+                                     requested_count=resource_count)
+            for rid in resource_ids
+        )
+
     resources = session.scalars(
         select(Resource).where(
             Resource.business_id == business_id,
@@ -105,7 +120,8 @@ def is_business_slot_available(
 
     if resources:
         return any(
-            check_resource_available(session, r.id, starts_at, ends_at)
+            check_resource_available(session, r.id, starts_at, ends_at,
+                                     requested_count=resource_count)
             for r in resources
         )
 

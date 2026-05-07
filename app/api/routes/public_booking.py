@@ -1,5 +1,6 @@
 """Public booking page routes — Jinja2 + HTMX server-rendered flow."""
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
@@ -12,7 +13,8 @@ from app.models.booking import BookingStatus
 from app.models.business import Business, Location
 from app.models.customer import Customer
 from app.models.resource import Resource
-from app.models.service import Service, calculate_amount_due
+from app.models.service import Service, PriceUnit, calculate_amount_due
+from app.models.service_extra import ServiceExtra
 from app.models.staff import Staff
 from app.schemas.booking import BookingCreateRequest
 from app.services import availability_service, booking_service
@@ -22,6 +24,15 @@ templates = Jinja2Templates(directory="app/templates")
 
 _UTC = timezone.utc
 _SLOT_HOURS = list(range(8, 18))  # 08:00–17:00 on the hour
+
+# Minutes per price-unit billing period — used for cost display in templates.
+_PRICE_UNIT_MINUTES: dict[str, int] = {
+    PriceUnit.per_minute.value: 1,
+    PriceUnit.per_5_min.value: 5,
+    PriceUnit.per_15_min.value: 15,
+    PriceUnit.per_30_min.value: 30,
+    PriceUnit.per_hour.value: 60,
+}
 
 
 def _get_business(slug: str, db: Session) -> Business:
@@ -44,12 +55,8 @@ def _build_location_groups(
         {"location": Location, "staff": [Staff, ...], "resources": [Resource, ...]}
 
     Only locations that have at least one active staff member or resource are
-    included.  Staff and resources not assigned to any location are collected
-    under a synthetic ``None``-location entry appended at the end (if any exist).
-
-    When *service_staff* or *service_resources* are provided (service-specific
-    overrides), those lists are used instead of querying all active staff/resources
-    for the business.
+    included.  Staff and resources not assigned to any location are **not**
+    shown in the public booking flow.
     """
     locations = db.scalars(
         select(Location)
@@ -88,26 +95,41 @@ def _build_location_groups(
     active_resource_ids = {r.id for r in all_resources}
 
     groups: list[dict] = []
-    assigned_staff_ids: set[int] = set()
-    assigned_resource_ids: set[int] = set()
-
     for loc in locations:
         loc_staff = [s for s in loc.staff_members if s.id in active_staff_ids]
         loc_resources = [r for r in loc.resources if r.id in active_resource_ids]
         if loc_staff or loc_resources:
             groups.append({"location": loc, "staff": loc_staff, "resources": loc_resources})
-            assigned_staff_ids.update(s.id for s in loc_staff)
-            assigned_resource_ids.update(r.id for r in loc_resources)
 
-    # Collect unassigned active staff/resources into a catch-all group.
-    unassigned_staff = [s for s in all_staff if s.id not in assigned_staff_ids]
-    unassigned_resources = [r for r in all_resources if r.id not in assigned_resource_ids]
-    if unassigned_staff or unassigned_resources:
-        groups.append(
-            {"location": None, "staff": unassigned_staff, "resources": unassigned_resources}
-        )
-
+    # Unassigned staff/resources are intentionally omitted from the booking UI.
     return groups
+
+
+def _extras_for_staff(
+    service_extras: list[ServiceExtra],
+    staff: Staff | None,
+) -> list[ServiceExtra]:
+    """Filter extras to those the given staff member can offer.
+
+    If *staff* is None or the staff member has no explicit extras assigned,
+    all extras are returned (default-all semantics).
+    """
+    if staff is None or not staff.extras:
+        return service_extras
+    allowed_ids = {e.id for e in staff.extras}
+    return [e for e in service_extras if e.id in allowed_ids]
+
+
+def _extra_cost(extra: ServiceExtra, duration_minutes: int) -> Decimal:
+    """Calculate the cost for one extra given a selected duration."""
+    from decimal import ROUND_HALF_UP
+
+    unit_price = Decimal(str(extra.unit_price))
+    if extra.price_unit == PriceUnit.flat.value or extra.price_unit == "flat":
+        return unit_price.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    unit_mins = _PRICE_UNIT_MINUTES.get(extra.price_unit, 1)
+    units = Decimal(str(duration_minutes)) / Decimal(str(unit_mins))
+    return (unit_price * units).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 # ------------------------------------------------------------------
@@ -136,13 +158,21 @@ def slot_page(
     slug: str, service_id: int, request: Request, db: Session = Depends(get_db_session)
 ):
     business = _get_business(slug, db)
-    service = db.get(Service, service_id)
+    service = db.scalar(
+        select(Service)
+        .where(Service.id == service_id)
+        .options(selectinload(Service.resources), selectinload(Service.staff_members))
+    )
     if service is None or service.business_id != business.id:
         raise HTTPException(status_code=404, detail="Service not found")
     today = date.today().isoformat()
     svc_staff = service.staff_members if service.staff_members else None
     svc_resources = service.resources if service.resources else None
     location_groups = _build_location_groups(business.id, db, svc_staff, svc_resources)
+
+    # Resources linked to this service (for the "how many?" picker).
+    service_resources = list(service.resources) if service.resources else []
+
     return templates.TemplateResponse(
         request,
         "public/slot.html",
@@ -151,6 +181,8 @@ def slot_page(
             "service": service,
             "today": today,
             "location_groups": location_groups,
+            "single_location": len(location_groups) == 1,
+            "service_resources": service_resources,
         },
     )
 
@@ -165,6 +197,8 @@ def slots_fragment(
     request: Request,
     date: str = "",
     staff_ids: list[int] = Query(default=[]),
+    resource_ids: list[int] = Query(default=[]),
+    resource_count: int = Query(default=1),
     db: Session = Depends(get_db_session),
 ):
     business = _get_business(slug, db)
@@ -187,13 +221,16 @@ def slots_fragment(
                     chosen_date.year, chosen_date.month, chosen_date.day, hour, 0, 0, tzinfo=_UTC
                 )
                 ends_at = starts_at + timedelta(minutes=service.duration_minutes)
-                # Buffer extends the effective window so the next slot can't
-                # start within the post-booking idle period.
                 effective_end = ends_at + timedelta(minutes=buffer)
 
                 booked = not availability_service.is_business_slot_available(
-                    db, business.id, starts_at, effective_end,
+                    db,
+                    business.id,
+                    starts_at,
+                    effective_end,
                     staff_ids=staff_ids if staff_ids else None,
+                    resource_ids=resource_ids if resource_ids else None,
+                    resource_count=max(1, resource_count),
                 )
                 slots.append({"iso": starts_at.isoformat(), "booked": booked})
 
@@ -204,6 +241,47 @@ def slots_fragment(
             "slots": slots,
             "business_slug": slug,
             "service_id": service_id,
+        },
+    )
+
+
+# ------------------------------------------------------------------
+# GET /book/{slug}/{service_id}/extras  — HTMX fragment: extras by staff
+# ------------------------------------------------------------------
+@router.get("/{slug}/{service_id}/extras", response_class=HTMLResponse)
+def extras_fragment(
+    slug: str,
+    service_id: int,
+    request: Request,
+    staff_id: int | None = Query(default=None),
+    db: Session = Depends(get_db_session),
+):
+    """Return an HTMX fragment listing extras filtered by selected staff."""
+    business = _get_business(slug, db)
+    service = db.scalar(
+        select(Service)
+        .where(Service.id == service_id)
+        .options(selectinload(Service.extras))
+    )
+    if service is None or service.business_id != business.id:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    staff: Staff | None = None
+    if staff_id:
+        staff = db.scalar(
+            select(Staff)
+            .where(Staff.id == staff_id)
+            .options(selectinload(Staff.extras))
+        )
+
+    extras = _extras_for_staff(service.extras, staff)
+    return templates.TemplateResponse(
+        request,
+        "public/extras_fragment.html",
+        {
+            "extras": extras,
+            "service_duration": service.duration_minutes,
+            "price_unit_minutes": _PRICE_UNIT_MINUTES,
         },
     )
 
@@ -221,11 +299,17 @@ def details_page(
     error: str = "",
 ):
     business = _get_business(slug, db)
-    service = db.get(Service, service_id)
+    service = db.scalar(
+        select(Service)
+        .where(Service.id == service_id)
+        .options(
+            selectinload(Service.extras).selectinload(ServiceExtra.staff_members),
+            selectinload(Service.resources),
+            selectinload(Service.staff_members).selectinload(Staff.extras),
+        )
+    )
     if service is None or service.business_id != business.id:
         raise HTTPException(status_code=404, detail="Service not found")
-    # URL-encoding turns '+' into a space; restore it before parsing so that
-    # timezone offsets like +00:00 are handled correctly.
     try:
         starts_at_dt = datetime.fromisoformat(starts_at.replace(" ", "+"))
     except ValueError:
@@ -239,6 +323,9 @@ def details_page(
     svc_resources = service.resources if service.resources else None
     location_groups = _build_location_groups(business.id, db, svc_staff, svc_resources)
 
+    # All extras for the service (staff filtering happens client-side via HTMX).
+    all_extras = list(service.extras)
+
     return templates.TemplateResponse(
         request,
         "public/details.html",
@@ -246,16 +333,16 @@ def details_page(
             "business": business,
             "service": service,
             "starts_at": starts_at_dt,
-            # Use a plain naive UTC string (no + sign) so the hidden form field
-            # round-trips cleanly through URL → form → POST without the
-            # + ↔ space encoding corruption that afflicts timezone offsets.
             "starts_at_iso": starts_at_dt.strftime("%Y-%m-%dT%H:%M:%S"),
             "ends_at": ends_at_dt,
             "ends_at_local": ends_at_dt.strftime("%Y-%m-%dT%H:%M"),
             "location_groups": location_groups,
-            "extras": service.extras,
+            "single_location": len(location_groups) == 1,
+            "extras": all_extras,
             "notes_prompt": service.notes_prompt or "Notes (optional)",
             "amount_due": amount_due,
+            "service_duration": duration_minutes,
+            "price_unit_minutes": _PRICE_UNIT_MINUTES,
             "error": error,
         },
     )
@@ -287,8 +374,6 @@ def confirm_booking(
         raise HTTPException(status_code=404, detail="Service not found")
 
     try:
-        # Defensively handle the + ↔ space encoding issue: a '+' in a query
-        # string or form value can arrive as a space after URL decoding.
         starts_at_dt = datetime.fromisoformat(starts_at.replace(" ", "+"))
         if starts_at_dt.tzinfo is None:
             starts_at_dt = starts_at_dt.replace(tzinfo=_UTC)

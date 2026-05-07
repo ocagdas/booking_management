@@ -5,38 +5,68 @@
 <h1>{{ service.name }}</h1>
 <p class="subtitle">Choose a date and time for your appointment ({{ service.duration_minutes }} min).</p>
 
+{% if service_resources %}
+{# Resource-count picker — shown only when resources are linked to this service #}
+<div class="card" style="margin-bottom:1rem">
+  <strong>How many do you need?</strong>
+  <div style="margin-top:.6rem;display:flex;flex-direction:column;gap:.5rem" id="resource-counts">
+    {% for r in service_resources %}
+    <div style="display:flex;align-items:center;gap:.75rem">
+      <label for="rc-{{ r.id }}" style="min-width:8rem">{{ r.name }}</label>
+      <input type="number" id="rc-{{ r.id }}"
+             name="resource_count_{{ r.id }}"
+             data-resource-id="{{ r.id }}"
+             class="resource-count-input"
+             value="1" min="1" max="{{ r.count }}"
+             style="width:5rem;padding:.25rem .5rem;border:1px solid #ccc;border-radius:4px">
+      <span style="color:#888;font-size:.9em">available: {{ r.count }}</span>
+      {# Hidden field so hx-include picks up the resource_id alongside the count #}
+      <input type="hidden" class="resource-id-field" value="{{ r.id }}">
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {% if location_groups %}
+{% if not single_location %}
 <div class="card" style="margin-bottom:1rem">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
-    <strong>Select location &amp; staff</strong>
+    <strong>Filter by staff</strong>
     <span>
       <a href="#" id="select-all-btn" style="font-size:.85rem;margin-right:.75rem">Select all</a>
       <a href="#" id="unselect-all-btn" style="font-size:.85rem">Unselect all</a>
     </span>
   </div>
+{% else %}
+<div style="display:none">
+{% endif %}
 
   {% for group in location_groups %}
   {% set loc = group.location %}
   {% set loc_id = loc.id if loc else 'none' %}
-  <div class="location-group" style="margin-bottom:.75rem;border:1px solid #e0e0e0;border-radius:6px;overflow:hidden">
+  <div class="location-group" style="{% if not single_location %}margin-bottom:.75rem;border:1px solid #e0e0e0;border-radius:6px;overflow:hidden{% endif %}">
+    {% if not single_location %}
     <div class="location-header"
          style="display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;background:#f8f9fa;cursor:pointer"
          data-loc="{{ loc_id }}">
       <input type="checkbox" class="location-check" id="loc-check-{{ loc_id }}"
              data-loc="{{ loc_id }}" style="cursor:pointer">
       <label for="loc-check-{{ loc_id }}" style="cursor:pointer;margin:0;font-weight:600">
-        {% if loc %}📍 {{ loc.name }}{% else %}🌐 No location{% endif %}
+        📍 {{ loc.name }}
       </label>
       <span class="toggle-icon" style="margin-left:auto">▶</span>
     </div>
+    {% endif %}
 
     <div class="staff-list" id="staff-{{ loc_id }}"
-         style="display:none;padding:.5rem .75rem .75rem 2rem">
+         style="{% if single_location %}display:block{% else %}display:none{% endif %};padding:.5rem .75rem .75rem {% if single_location %}0{% else %}2rem{% endif %}">
       {% if group.staff %}
       {% for s in group.staff %}
       <div style="margin-bottom:.25rem">
         <input type="checkbox" class="staff-check" id="staff-{{ s.id }}"
-               name="staff_ids" value="{{ s.id }}" data-loc="{{ loc_id }}" style="cursor:pointer">
+               name="staff_ids" value="{{ s.id }}" data-loc="{{ loc_id }}"
+               {% if single_location %}checked{% endif %} style="cursor:pointer">
         <label for="staff-{{ s.id }}" style="cursor:pointer;margin:0">{{ s.name }}</label>
       </div>
       {% endfor %}
@@ -59,11 +89,13 @@
     hx-get="/book/{{ business.slug }}/{{ service.id }}/slots"
     hx-target="#slot-results"
     hx-trigger="change"
-    hx-include="#staff-selection-data, [name='date']"
+    hx-include="#staff-selection-data, #resource-selection-data, [name='date']"
   >
 
-  {# Hidden form that mirrors the checked staff IDs so hx-include picks them up #}
+  {# Hidden inputs mirroring checked staff IDs for hx-include #}
   <div id="staff-selection-data"></div>
+  {# Hidden inputs mirroring resource IDs + counts for hx-include #}
+  <div id="resource-selection-data"></div>
 
   <div id="slot-results">
     <p style="color:#888">Pick a date to see available times.</p>
@@ -99,8 +131,30 @@
     });
   }
 
+  function updateResourceSelectionData() {
+    var container = document.getElementById('resource-selection-data');
+    container.innerHTML = '';
+    document.querySelectorAll('.resource-count-input').forEach(function (inp) {
+      var rid = inp.dataset.resourceId;
+      var cnt = parseInt(inp.value, 10) || 1;
+      // resource_ids[] — which resource to check
+      var ridInp = document.createElement('input');
+      ridInp.type  = 'hidden';
+      ridInp.name  = 'resource_ids';
+      ridInp.value = rid;
+      container.appendChild(ridInp);
+      // resource_count — how many units needed (use the last value; all resources share it for now)
+      var cntInp = document.createElement('input');
+      cntInp.type  = 'hidden';
+      cntInp.name  = 'resource_count';
+      cntInp.value = cnt;
+      container.appendChild(cntInp);
+    });
+  }
+
   function refreshSlots() {
     updateStaffSelectionData();
+    updateResourceSelectionData();
     var dateEl = document.getElementById('booking-date');
     if (dateEl && dateEl.value) dateEl.dispatchEvent(new Event('change'));
   }
@@ -137,11 +191,10 @@
   document.querySelectorAll('.staff-check').forEach(function (cb) {
     cb.addEventListener('change', function () {
       var locId = cb.dataset.loc;
-      /* auto-open the panel */
       if (cb.checked) {
         var panel = document.getElementById('staff-' + locId);
         var icon  = document.querySelector('.location-header[data-loc="' + locId + '"] .toggle-icon');
-        panel.style.display = 'block';
+        if (panel) panel.style.display = 'block';
         if (icon) icon.textContent = '▼';
       }
       syncLocationCheck(locId);
@@ -149,8 +202,15 @@
     });
   });
 
-  /* ── select-all / unselect-all buttons ── */
-  document.getElementById('select-all-btn')   && document.getElementById('select-all-btn').addEventListener('click', function (e) {
+  /* ── resource count inputs ── */
+  document.querySelectorAll('.resource-count-input').forEach(function (inp) {
+    inp.addEventListener('change', refreshSlots);
+  });
+
+  /* ── select-all / unselect-all buttons (multi-location only) ── */
+  var selAll = document.getElementById('select-all-btn');
+  var unselAll = document.getElementById('unselect-all-btn');
+  if (selAll) selAll.addEventListener('click', function (e) {
     e.preventDefault();
     document.querySelectorAll('.location-check, .staff-check').forEach(function (cb) { cb.checked = true; });
     document.querySelectorAll('.staff-list').forEach(function (p) { p.style.display = 'block'; });
@@ -158,11 +218,14 @@
     document.querySelectorAll('.location-check').forEach(function (lc) { lc.indeterminate = false; });
     refreshSlots();
   });
-  document.getElementById('unselect-all-btn') && document.getElementById('unselect-all-btn').addEventListener('click', function (e) {
+  if (unselAll) unselAll.addEventListener('click', function (e) {
     e.preventDefault();
     document.querySelectorAll('.location-check, .staff-check').forEach(function (cb) { cb.checked = false; cb.indeterminate = false; });
     refreshSlots();
   });
+
+  /* ── initialise resource selection data on load ── */
+  updateResourceSelectionData();
 })();
 </script>
 {% endblock %}

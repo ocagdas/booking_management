@@ -1,0 +1,65 @@
+{# HTMX fragment — extras filtered by selected staff. #}
+{# Rendered into #extras-list on the details page. #}
+{% for e in extras %}
+{% set is_flat = (e.price_unit == 'flat') %}
+{% set min_mins = e.min_duration_minutes if e.min_duration_minutes else (price_unit_minutes[e.price_unit] if e.price_unit in price_unit_minutes else 0) %}
+<div class="extra-row" style="border:1px solid #f1f5f9;border-radius:6px;padding:.6rem .75rem;margin-bottom:.5rem"
+     data-extra-id="{{ e.id }}"
+     data-price="{{ e.unit_price }}"
+     data-price-unit="{{ e.price_unit }}"
+     data-unit-mins="{{ price_unit_minutes[e.price_unit] if e.price_unit in price_unit_minutes else 0 }}"
+     data-min-mins="{{ min_mins }}"
+     data-service-duration="{{ service_duration }}">
+  <div style="display:flex;align-items:flex-start;gap:.6rem">
+    <input type="checkbox" name="extra_ids" value="{{ e.id }}"
+           id="extra-{{ e.id }}"
+           class="extra-check"
+           {% if e.default_selected %}checked{% endif %}
+           onchange="onExtraToggle(this)">
+    <div style="flex:1">
+      <label for="extra-{{ e.id }}" style="cursor:pointer;font-weight:500;margin:0">
+        {{ e.name }}
+        {% if e.unit_price > 0 %}
+        <span class="extra-price-label" style="color:#2563eb;font-size:.9em;margin-left:.3rem">
+          {% if is_flat %}
+            +${{ "%.2f"|format(e.unit_price) }}
+          {% else %}
+            +${{ "%.2f"|format(e.unit_price) }}/{{ e.price_unit.replace('_',' ') }}
+          {% endif %}
+        </span>
+        {% endif %}
+      </label>
+      {% if e.description %}
+      <p style="color:#64748b;font-size:.88em;margin:.2rem 0 0">{{ e.description }}</p>
+      {% endif %}
+
+      {# Duration slider — only for time-based extras #}
+      {% if not is_flat and e.unit_price > 0 %}
+      <div class="extra-duration-ctrl" id="dur-ctrl-{{ e.id }}"
+           style="margin-top:.4rem;display:{% if e.default_selected %}flex{% else %}none{% endif %};align-items:center;gap:.5rem">
+        <label for="dur-{{ e.id }}" style="font-size:.85em;color:#475569;margin:0;white-space:nowrap">Duration:</label>
+        <input type="range" id="dur-{{ e.id }}"
+               class="extra-dur-range"
+               data-extra-id="{{ e.id }}"
+               min="{{ min_mins }}"
+               max="{{ service_duration }}"
+               step="{{ price_unit_minutes[e.price_unit] if e.price_unit in price_unit_minutes else 1 }}"
+               value="{{ min_mins }}"
+               oninput="onDurChange(this)"
+               style="flex:1">
+        <span id="dur-label-{{ e.id }}" style="font-size:.85em;min-width:4rem;text-align:right">{{ min_mins }} min</span>
+        <input type="hidden" name="extra_dur_{{ e.id }}" id="extra-dur-hidden-{{ e.id }}" value="{{ min_mins }}">
+      </div>
+      {% endif %}
+
+      {# Per-extra cost display #}
+      <div class="extra-cost-line" id="extra-cost-{{ e.id }}"
+           style="font-size:.85em;color:#16a34a;margin-top:.2rem;display:{% if e.default_selected %}block{% else %}none{% endif %}">
+        Extra cost: <span id="extra-cost-val-{{ e.id }}">$0.00</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+<p style="color:#888;font-size:.9em">No extras available for this selection.</p>
+{% endfor %}

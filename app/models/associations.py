@@ -80,6 +80,27 @@ resource_locations = sa.Table(
     ),
 )
 
+# Staff ↔ ServiceExtras: which extras a staff member can offer.
+# Semantics: if a staff member has *any* row here for extras belonging to a
+# service, only those extras are offered.  If no rows exist for any extras of
+# that service, the staff member can offer *all* extras (default-all).
+staff_extras = sa.Table(
+    "staff_extras",
+    Base.metadata,
+    sa.Column(
+        "staff_id",
+        sa.Integer,
+        sa.ForeignKey("staff.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    sa.Column(
+        "service_extra_id",
+        sa.Integer,
+        sa.ForeignKey("service_extras.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
 # Staff ↔ Roles: many-to-many — a staff member can hold multiple roles.
 staff_roles = sa.Table(
     "staff_roles",
