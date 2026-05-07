@@ -131,6 +131,9 @@ class BookingStaffAdmin(ModelView, model=BookingStaff):
     name_plural = "Booking Staff"
     details_template = "sqladmin/model_details.html"
     column_list = [BookingStaff.id, BookingStaff.booking, BookingStaff.staff_member]
+    column_formatters = {
+        "id": lambda m, a: f"#{m.id} — {m.staff_member.name if m.staff_member else ''}",
+    }
 
 
 class BookingResourceAdmin(ModelView, model=BookingResource):
@@ -138,6 +141,9 @@ class BookingResourceAdmin(ModelView, model=BookingResource):
     name_plural = "Booking Resources"
     details_template = "sqladmin/model_details.html"
     column_list = [BookingResource.id, BookingResource.booking, BookingResource.resource]
+    column_formatters = {
+        "id": lambda m, a: f"#{m.id} — {m.resource.name if m.resource else ''}",
+    }
 
 
 class ServiceExtraAdmin(ModelView, model=ServiceExtra):
@@ -160,6 +166,9 @@ class BookingExtraAdmin(ModelView, model=BookingExtra):
     name_plural = "Booking Extras"
     details_template = "sqladmin/model_details.html"
     column_list = [BookingExtra.id, BookingExtra.booking, BookingExtra.extra]
+    column_formatters = {
+        "id": lambda m, a: f"#{m.id} — {m.extra.name if m.extra else ''}",
+    }
 
 
 class AuditLogAdmin(ModelView, model=AuditLog):
