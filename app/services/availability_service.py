@@ -74,15 +74,27 @@ def is_business_slot_available(
     business_id: int,
     starts_at: datetime,
     ends_at: datetime,
+    staff_ids: list[int] | None = None,
 ) -> bool:
     """Return True if the business can accept at least one more booking.
 
-    * If the business has active resources configured, the slot is available
-      when at least one resource still has remaining capacity.
+    When *staff_ids* is provided (non-empty), availability is computed against
+    those specific staff members — the slot is available when at least one of
+    the selected staff members has no overlapping active booking.
+
+    * If the business has active resources configured (and no staff filter is
+      applied), the slot is available when at least one resource still has
+      remaining capacity.
     * If no resources are configured, fall back to a one-booking-per-slot
       limit (suitable for simple appointment businesses).
     """
     from app.models.resource import Resource
+
+    if staff_ids:
+        return any(
+            check_staff_available(session, sid, starts_at, ends_at)
+            for sid in staff_ids
+        )
 
     resources = session.scalars(
         select(Resource).where(

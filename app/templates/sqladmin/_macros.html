@@ -53,6 +53,22 @@
   {% endif %}
   {% endfor %}
 </div>
+<script>
+/* Auto-unfold sidebar dropdown groups that contain an active child link. */
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.navbar-nav .dropdown-menu').forEach(function (menu) {
+    if (menu.querySelector('.nav-link.active')) {
+      menu.classList.add('show');
+      var toggle = menu.previousElementSibling;
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', 'true');
+        var li = toggle.closest('.nav-item');
+        if (li) li.classList.add('show');
+      }
+    }
+  });
+});
+</script>
 {% endmacro %}
 
 {% macro render_field(field, kwargs={}, ajax_lookup_url="") %}

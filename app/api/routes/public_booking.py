@@ -1,7 +1,7 @@
 """Public booking page routes — Jinja2 + HTMX server-rendered flow."""
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
@@ -164,6 +164,7 @@ def slots_fragment(
     service_id: int,
     request: Request,
     date: str = "",
+    staff_ids: list[int] = Query(default=[]),
     db: Session = Depends(get_db_session),
 ):
     business = _get_business(slug, db)
@@ -191,7 +192,8 @@ def slots_fragment(
                 effective_end = ends_at + timedelta(minutes=buffer)
 
                 booked = not availability_service.is_business_slot_available(
-                    db, business.id, starts_at, effective_end
+                    db, business.id, starts_at, effective_end,
+                    staff_ids=staff_ids if staff_ids else None,
                 )
                 slots.append({"iso": starts_at.isoformat(), "booked": booked})
 

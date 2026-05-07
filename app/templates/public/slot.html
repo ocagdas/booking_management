@@ -7,22 +7,49 @@
 
 {% if location_groups %}
 <div class="card" style="margin-bottom:1rem">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+    <strong>Select location &amp; staff</strong>
+    <span>
+      <a href="#" id="select-all-btn" style="font-size:.85rem;margin-right:.75rem">Select all</a>
+      <a href="#" id="unselect-all-btn" style="font-size:.85rem">Unselect all</a>
+    </span>
+  </div>
+
   {% for group in location_groups %}
-  <div style="margin-bottom:.5rem">
-    <strong>{% if group.location %}📍 {{ group.location.name }}{% else %}🌐 No location{% endif %}:</strong>
-    {% if group.staff %}
-    Staff: {% for s in group.staff %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}
-    {% endif %}
-    {% if group.staff and group.resources %} &nbsp;|&nbsp; {% endif %}
-    {% if group.resources %}
-    Resources: {% for r in group.resources %}{{ r.name }}{% if r.count > 1 %} (×{{ r.count }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
-    {% endif %}
+  {% set loc = group.location %}
+  {% set loc_id = loc.id if loc else 'none' %}
+  <div class="location-group" style="margin-bottom:.75rem;border:1px solid #e0e0e0;border-radius:6px;overflow:hidden">
+    <div class="location-header"
+         style="display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;background:#f8f9fa;cursor:pointer"
+         data-loc="{{ loc_id }}">
+      <input type="checkbox" class="location-check" id="loc-check-{{ loc_id }}"
+             data-loc="{{ loc_id }}" style="cursor:pointer">
+      <label for="loc-check-{{ loc_id }}" style="cursor:pointer;margin:0;font-weight:600">
+        {% if loc %}📍 {{ loc.name }}{% else %}🌐 No location{% endif %}
+      </label>
+      <span class="toggle-icon" style="margin-left:auto">▶</span>
+    </div>
+
+    <div class="staff-list" id="staff-{{ loc_id }}"
+         style="display:none;padding:.5rem .75rem .75rem 2rem">
+      {% if group.staff %}
+      {% for s in group.staff %}
+      <div style="margin-bottom:.25rem">
+        <input type="checkbox" class="staff-check" id="staff-{{ s.id }}"
+               name="staff_ids" value="{{ s.id }}" data-loc="{{ loc_id }}" style="cursor:pointer">
+        <label for="staff-{{ s.id }}" style="cursor:pointer;margin:0">{{ s.name }}</label>
+      </div>
+      {% endfor %}
+      {% else %}
+      <em style="color:#888;font-size:.9rem">No staff assigned</em>
+      {% endif %}
+    </div>
   </div>
   {% endfor %}
 </div>
 {% endif %}
 
-<div class="card">
+<div class="card" id="date-picker-card">
   <label for="booking-date">Date</label>
   <input
     id="booking-date"
@@ -32,11 +59,110 @@
     hx-get="/book/{{ business.slug }}/{{ service.id }}/slots"
     hx-target="#slot-results"
     hx-trigger="change"
-    hx-include="[name='date']"
+    hx-include="#staff-selection-data, [name='date']"
   >
+
+  {# Hidden form that mirrors the checked staff IDs so hx-include picks them up #}
+  <div id="staff-selection-data"></div>
 
   <div id="slot-results">
     <p style="color:#888">Pick a date to see available times.</p>
   </div>
 </div>
+
+<script>
+(function () {
+  /* ── helpers ── */
+  function staffCheckboxes(locId) {
+    return document.querySelectorAll('.staff-check[data-loc="' + locId + '"]');
+  }
+
+  function syncLocationCheck(locId) {
+    var checks = staffCheckboxes(locId);
+    var locCheck = document.getElementById('loc-check-' + locId);
+    if (!locCheck) return;
+    var allChecked  = checks.length > 0 && Array.from(checks).every(function (c) { return c.checked; });
+    var someChecked = Array.from(checks).some(function (c) { return c.checked; });
+    locCheck.checked       = allChecked;
+    locCheck.indeterminate = !allChecked && someChecked;
+  }
+
+  function updateStaffSelectionData() {
+    var container = document.getElementById('staff-selection-data');
+    container.innerHTML = '';
+    document.querySelectorAll('.staff-check:checked').forEach(function (cb) {
+      var inp = document.createElement('input');
+      inp.type  = 'hidden';
+      inp.name  = 'staff_ids';
+      inp.value = cb.value;
+      container.appendChild(inp);
+    });
+  }
+
+  function refreshSlots() {
+    updateStaffSelectionData();
+    var dateEl = document.getElementById('booking-date');
+    if (dateEl && dateEl.value) dateEl.dispatchEvent(new Event('change'));
+  }
+
+  /* ── location header click: toggle expand + check all staff ── */
+  document.querySelectorAll('.location-header').forEach(function (header) {
+    header.addEventListener('click', function (e) {
+      if (e.target.matches('input[type="checkbox"]') || e.target.matches('label')) return;
+      var locId     = header.dataset.loc;
+      var panel     = document.getElementById('staff-' + locId);
+      var icon      = header.querySelector('.toggle-icon');
+      var isOpen    = panel.style.display !== 'none';
+      panel.style.display = isOpen ? 'none' : 'block';
+      icon.textContent    = isOpen ? '▶' : '▼';
+    });
+  });
+
+  /* ── location checkbox: check/uncheck all staff underneath ── */
+  document.querySelectorAll('.location-check').forEach(function (locCheck) {
+    locCheck.addEventListener('change', function () {
+      var locId = locCheck.dataset.loc;
+      var panel = document.getElementById('staff-' + locId);
+      var icon  = locCheck.closest('.location-header').querySelector('.toggle-icon');
+      if (locCheck.checked) {
+        panel.style.display = 'block';
+        icon.textContent    = '▼';
+      }
+      staffCheckboxes(locId).forEach(function (cb) { cb.checked = locCheck.checked; });
+      refreshSlots();
+    });
+  });
+
+  /* ── individual staff checkbox ── */
+  document.querySelectorAll('.staff-check').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      var locId = cb.dataset.loc;
+      /* auto-open the panel */
+      if (cb.checked) {
+        var panel = document.getElementById('staff-' + locId);
+        var icon  = document.querySelector('.location-header[data-loc="' + locId + '"] .toggle-icon');
+        panel.style.display = 'block';
+        if (icon) icon.textContent = '▼';
+      }
+      syncLocationCheck(locId);
+      refreshSlots();
+    });
+  });
+
+  /* ── select-all / unselect-all buttons ── */
+  document.getElementById('select-all-btn')   && document.getElementById('select-all-btn').addEventListener('click', function (e) {
+    e.preventDefault();
+    document.querySelectorAll('.location-check, .staff-check').forEach(function (cb) { cb.checked = true; });
+    document.querySelectorAll('.staff-list').forEach(function (p) { p.style.display = 'block'; });
+    document.querySelectorAll('.toggle-icon').forEach(function (i) { i.textContent = '▼'; });
+    document.querySelectorAll('.location-check').forEach(function (lc) { lc.indeterminate = false; });
+    refreshSlots();
+  });
+  document.getElementById('unselect-all-btn') && document.getElementById('unselect-all-btn').addEventListener('click', function (e) {
+    e.preventDefault();
+    document.querySelectorAll('.location-check, .staff-check').forEach(function (cb) { cb.checked = false; cb.indeterminate = false; });
+    refreshSlots();
+  });
+})();
+</script>
 {% endblock %}
