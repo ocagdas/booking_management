@@ -23,7 +23,7 @@ class LocationAdmin(ModelView, model=Location):
     name = "Location"
     name_plural = "Locations"
     details_template = "sqladmin/model_details.html"
-    column_list = [Location.id, Location.name, Location.business_id, Location.address]
+    column_list = [Location.id, Location.name, Location.business, Location.address]
     column_searchable_list = [Location.name]
     column_sortable_list = [Location.id, Location.name]
 
@@ -36,7 +36,7 @@ class ServiceAdmin(ModelView, model=Service):
     column_list = [
         Service.id,
         Service.name,
-        Service.business_id,
+        Service.business,
         Service.duration_minutes,
         Service.price_unit,
         Service.unit_price,
@@ -53,7 +53,7 @@ class StaffAdmin(ModelView, model=Staff):
     name = "Staff"
     name_plural = "Staff"
     details_template = "sqladmin/model_details.html"
-    column_list = [Staff.id, Staff.name, Staff.business_id, Staff.email, Staff.is_active]
+    column_list = [Staff.id, Staff.name, Staff.business, Staff.email, Staff.is_active]
     column_searchable_list = [Staff.name, Staff.email]
     column_sortable_list = [Staff.id, Staff.name]
 
@@ -62,7 +62,7 @@ class StaffRoleAdmin(ModelView, model=StaffRole):
     name = "Staff Role"
     name_plural = "Staff Roles"
     details_template = "sqladmin/model_details.html"
-    column_list = [StaffRole.id, StaffRole.staff_id, StaffRole.role, StaffRole.created_at]
+    column_list = [StaffRole.id, StaffRole.staff_member, StaffRole.role, StaffRole.created_at]
     column_searchable_list = [StaffRole.role]
 
 
@@ -70,7 +70,7 @@ class ResourceAdmin(ModelView, model=Resource):
     name = "Resource"
     name_plural = "Resources"
     details_template = "sqladmin/model_details.html"
-    column_list = [Resource.id, Resource.name, Resource.business_id, Resource.resource_type, Resource.count, Resource.is_active]
+    column_list = [Resource.id, Resource.name, Resource.business, Resource.resource_type, Resource.count, Resource.is_active]
     column_searchable_list = [Resource.name]
     column_sortable_list = [Resource.id, Resource.name]
 
@@ -79,7 +79,7 @@ class CustomerAdmin(ModelView, model=Customer):
     name = "Customer"
     name_plural = "Customers"
     details_template = "sqladmin/model_details.html"
-    column_list = [Customer.id, Customer.name, Customer.business_id, Customer.email, Customer.phone]
+    column_list = [Customer.id, Customer.name, Customer.business, Customer.email, Customer.phone]
     column_searchable_list = [Customer.name, Customer.email]
     column_sortable_list = [Customer.id, Customer.name]
 
@@ -92,9 +92,9 @@ class BookingAdmin(ModelView, model=Booking):
     edit_template = "sqladmin/booking_edit.html"
     column_list = [
         Booking.id,
-        Booking.business_id,
-        Booking.customer_id,
-        Booking.service_id,
+        Booking.business,
+        Booking.customer,
+        Booking.service,
         Booking.status,
         Booking.starts_at,
         Booking.ends_at,
@@ -130,14 +130,14 @@ class BookingStaffAdmin(ModelView, model=BookingStaff):
     name = "Booking Staff"
     name_plural = "Booking Staff"
     details_template = "sqladmin/model_details.html"
-    column_list = [BookingStaff.id, BookingStaff.booking_id, BookingStaff.staff_id]
+    column_list = [BookingStaff.id, BookingStaff.booking, BookingStaff.staff_member]
 
 
 class BookingResourceAdmin(ModelView, model=BookingResource):
     name = "Booking Resource"
     name_plural = "Booking Resources"
     details_template = "sqladmin/model_details.html"
-    column_list = [BookingResource.id, BookingResource.booking_id, BookingResource.resource_id]
+    column_list = [BookingResource.id, BookingResource.booking, BookingResource.resource]
 
 
 class ServiceExtraAdmin(ModelView, model=ServiceExtra):
@@ -146,7 +146,7 @@ class ServiceExtraAdmin(ModelView, model=ServiceExtra):
     details_template = "sqladmin/model_details.html"
     column_list = [
         ServiceExtra.id,
-        ServiceExtra.service_id,
+        ServiceExtra.service,
         ServiceExtra.name,
         ServiceExtra.default_selected,
         ServiceExtra.sort_order,
@@ -159,7 +159,7 @@ class BookingExtraAdmin(ModelView, model=BookingExtra):
     name = "Booking Extra"
     name_plural = "Booking Extras"
     details_template = "sqladmin/model_details.html"
-    column_list = [BookingExtra.id, BookingExtra.booking_id, BookingExtra.service_extra_id]
+    column_list = [BookingExtra.id, BookingExtra.booking, BookingExtra.extra]
 
 
 class AuditLogAdmin(ModelView, model=AuditLog):
