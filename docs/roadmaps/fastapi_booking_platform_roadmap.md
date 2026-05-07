@@ -283,6 +283,7 @@ Do not allow arbitrary custom CSS in the MVP.
 | Balance | Customer account credit |
 | Notifications | Email, SMS later, reminders |
 | Billing | Subscription plans and Stripe integration later |
+| Accounting | Push invoices and credit notes to Xero, Sage, QuickBooks |
 | Audit | Full history of important actions |
 | Config loader | YAML or JSON driven business setup |
 
@@ -521,7 +522,15 @@ booking_platform/
       balance_service.py
       notification_service.py
       billing_service.py
+      accounting_service.py
       audit_service.py
+
+    accounting/
+      base.py           (AccountingProvider abstract base)
+      xero.py           (XeroAdapter)
+      sage.py           (SageAdapter)
+      quickbooks.py     (QuickBooksAdapter)
+      jobs.py           (RQ job functions for push and reconciliation)
 
     api/
       routes/
@@ -1028,7 +1037,163 @@ Acceptance tests:
 
 ---
 
-### Phase 13: Deployment and backups
+### Phase 13: Accounting software integration
+
+Goal:
+
+```text
+Allow businesses to push invoices, credit notes and contact records to external
+accounting platforms such as Xero, Sage Business Cloud and QuickBooks Online.
+
+This phase is independent of payment collection. Businesses can use accounting
+integration without Stripe. Invoices can be raised immediately for cash
+transactions or with a future due date for deferred payment.
+```
+
+Design:
+
+```text
+Provider-agnostic adapter pattern.
+Each accounting platform is a concrete adapter behind a common interface.
+Business configuration drives which provider is active per business.
+```
+
+Independence from payment collection:
+
+```text
+Accounting integration does not require Stripe to be configured.
+Stripe integration does not require accounting integration to be configured.
+Both can be active at the same time, or either can be used alone.
+Invoice due dates are controlled by payment_terms_days on AccountingSettings,
+not by any Stripe payment schedule.
+```
+
+Models:
+
+```text
+AccountingSettings
+  business_id
+  provider (xero, sage, quickbooks, freeagent, none)
+  client_id (encrypted at rest)
+  client_secret (encrypted at rest)
+  access_token (encrypted at rest)
+  refresh_token (encrypted at rest)
+  token_expires_at
+  tenant_id (provider organisation or tenant reference)
+  account_code_services (chart of accounts code for service lines)
+  account_code_extras (chart of accounts code for extra lines)
+  tax_rate_id (provider tax rate reference)
+  invoice_prefix
+  payment_terms_days (0 = due today, N = net N days)
+  is_active
+
+AccountingPushLog
+  business_id
+  booking_id (nullable)
+  event_type (invoice_pushed, credit_note_pushed, contact_pushed, reconciliation)
+  provider
+  provider_reference (invoice or contact ID in the accounting system)
+  status (queued, success, failed, retrying)
+  attempts
+  last_attempt_at
+  error_message
+  created_at
+```
+
+Adapter interface:
+
+```text
+AccountingProvider (abstract base)
+  push_invoice(booking, settings) -> provider_reference
+  push_credit_note(refund_or_cancellation, settings) -> provider_reference
+  push_contact(customer, settings) -> provider_reference
+  verify_connection(settings) -> bool
+
+Concrete adapters (all behind the same interface):
+  XeroAdapter        (OAuth 2.0 with PKCE)
+  SageAdapter        (OAuth 2.0)
+  QuickBooksAdapter  (OAuth 2.0)
+```
+
+Invoice behaviour:
+
+| Mode | Behaviour |
+|---|---|
+| Cash (payment_terms_days = 0) | Invoice issued with due date set to today |
+| Deferred (payment_terms_days > 0) | Invoice issued with due date set to today + N days |
+| Credit note | Issued when a booking is cancelled after its invoice was already pushed |
+
+Event triggers:
+
+| Event | Action |
+|---|---|
+| Booking transitions to completed | Push invoice job enqueued |
+| Booking cancelled (invoice already pushed) | Push credit note job enqueued |
+| Customer record created or updated | Push or update contact job enqueued |
+| Nightly schedule | Reconciliation job runs |
+
+Queue behaviour:
+
+```text
+All pushes are dispatched as RQ background jobs.
+Failed jobs are retried with exponential back-off.
+Maximum five attempts before marking status as failed.
+Failed pushes appear in the admin AccountingPushLog view and can be retried manually.
+```
+
+Webhook receiver:
+
+```text
+POST /webhooks/accounting/{provider}
+
+Receives real-time events from accounting platforms.
+Example: invoice marked as paid in Xero updates booking payment status.
+All incoming events are written to AccountingPushLog before processing.
+Webhook signatures must be verified before any action is taken.
+```
+
+Nightly reconciliation job:
+
+```text
+Runs via RQ scheduler.
+Compares invoices pushed to the accounting system with completed bookings.
+Flags discrepancies in AccountingPushLog.
+Does not automatically overwrite data in either system.
+```
+
+Admin UI additions:
+
+| View | Purpose |
+|---|---|
+| AccountingSettings list | View and edit per-business accounting provider config |
+| Test Connection action | Calls verify_connection on the active provider |
+| AccountingPushLog list | View push history, status and error messages |
+| Retry action | Re-queue a failed push job |
+
+Acceptance criteria:
+
+| Test | Expected |
+|---|---|
+| AccountingSettings saved | Credentials stored encrypted, not in plaintext |
+| Test Connection with valid credentials | Returns success |
+| Test Connection with invalid credentials | Returns error message |
+| Booking completed, provider active | Invoice push job enqueued |
+| Push job succeeds | AccountingPushLog created with provider_reference |
+| Push job fails transiently | Retried with exponential back-off |
+| Push job fails five times | Status set to failed, visible in admin |
+| Manual retry from admin | Job re-enqueued, attempt counter reset |
+| Booking cancelled after invoice pushed | Credit note job enqueued |
+| payment_terms_days is 0 | Invoice due date is today |
+| payment_terms_days is 30 | Invoice due date is 30 days from today |
+| Stripe not configured | Accounting integration still works |
+| Accounting not configured | Stripe integration still works |
+| Webhook received with valid signature | Event logged, action taken |
+| Webhook received with invalid signature | Rejected with 400 |
+| Nightly reconciliation runs | Discrepancies flagged in AccountingPushLog |
+
+---
+
+### Phase 14: Deployment and backups
 
 Goal:
 
@@ -1478,7 +1643,7 @@ Acceptance tests:
 
 ---
 
-### Phase 14: Dashboards and reporting
+### Phase 15: Dashboards and reporting
 
 Goal:
 
@@ -1536,7 +1701,7 @@ Acceptance criteria:
 
 ---
 
-### Phase 15: Authentication, SSO and bootstrap flow
+### Phase 16: Authentication, SSO and bootstrap flow
 
 Goal:
 
@@ -1604,7 +1769,7 @@ Acceptance criteria:
 
 ---
 
-### Phase 16: Staff invitations
+### Phase 17: Staff invitations
 
 Goal:
 
@@ -1656,7 +1821,7 @@ Acceptance criteria:
 
 ---
 
-### Phase 17: Appointment reminders and SMS
+### Phase 18: Appointment reminders and SMS
 
 Goal:
 
@@ -1729,7 +1894,66 @@ Acceptance criteria:
 
 ---
 
-## 28. Final instruction for Copilot
+## 28. Eighth Copilot task
+
+```text
+Implement accounting software integration.
+
+Create models:
+AccountingSettings
+AccountingPushLog
+
+Create adapter package:
+app/accounting/base.py    (AccountingProvider abstract base)
+app/accounting/xero.py    (XeroAdapter — OAuth 2.0 with PKCE)
+app/accounting/sage.py    (SageAdapter — OAuth 2.0)
+app/accounting/quickbooks.py (QuickBooksAdapter — OAuth 2.0)
+app/accounting/jobs.py    (RQ job functions)
+
+Create service:
+accounting_service.py
+
+Requirements:
+1. AccountingSettings stores per-business provider config with encrypted credentials.
+2. AccountingProvider abstract base defines push_invoice, push_credit_note,
+   push_contact and verify_connection methods.
+3. Each concrete adapter implements the full interface.
+4. When a booking transitions to completed and a provider is active, enqueue a
+   push_invoice RQ job.
+5. When a booking is cancelled and its invoice was already pushed, enqueue a
+   push_credit_note RQ job.
+6. Invoice due date is today when payment_terms_days is 0.
+   Invoice due date is today + payment_terms_days when positive.
+7. Accounting integration must not require Stripe to be configured.
+8. Stripe integration must not require accounting integration to be configured.
+9. Failed jobs are retried with exponential back-off up to five attempts.
+10. Every push attempt is recorded in AccountingPushLog.
+11. A webhook receiver at POST /webhooks/accounting/{provider} accepts real-time
+    events from accounting platforms. Signatures must be verified before processing.
+12. A nightly RQ scheduled job compares pushed invoices with completed bookings
+    and flags discrepancies in AccountingPushLog without overwriting either system.
+13. Add SQLAdmin views for AccountingSettings and AccountingPushLog.
+14. Add a Test Connection admin action that calls verify_connection.
+15. Add a Retry admin action that re-queues a failed push job.
+
+Acceptance tests:
+1. Booking completed with Xero provider active enqueues push_invoice job.
+2. Push invoice job creates AccountingPushLog with status success.
+3. Transient failure retries with back-off.
+4. Five consecutive failures set status to failed.
+5. Manual retry re-enqueues job and resets attempt counter.
+6. Booking cancelled after invoice pushed enqueues push_credit_note job.
+7. payment_terms_days 0 produces due date of today.
+8. payment_terms_days 30 produces due date of today + 30 days.
+9. Stripe not configured does not block accounting push.
+10. Accounting not configured does not block Stripe.
+11. Webhook with invalid signature returns 400 and no action taken.
+12. Nightly reconciliation flags missing push records.
+```
+
+---
+
+## 29. Final instruction for Copilot
 
 ```text
 Work incrementally.
