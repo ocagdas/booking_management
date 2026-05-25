@@ -2,12 +2,10 @@
 __pycache__/
 .pytest_cache/
 .mypy_cache/
-.coverage
-htmlcov/
+.ruff_cache/
 *.pyc
 *.pyo
-*.pyd
-*.db
-alembic/__pycache__/
+*.swp
+.env
+infra/docker/.env
 docker-compose.override.yml
-

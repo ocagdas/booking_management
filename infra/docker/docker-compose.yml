@@ -1,0 +1,73 @@
+services:
+  app:
+    container_name: ${APP_SERVICE_NAME}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+    environment:
+      ZMART_BOOKING_DATABASE_HOST: ${DATABASE_SERVICE_NAME}
+      ZMART_BOOKING_DATABASE_NAME: ${POSTGRES_DB}
+      ZMART_BOOKING_DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      ZMART_BOOKING_DATABASE_PORT: ${POSTGRES_CONTAINER_PORT}
+      ZMART_BOOKING_DATABASE_USER: ${POSTGRES_USER}
+      ZMART_BOOKING_REDIS_URL: redis://${REDIS_SERVICE_NAME}:${REDIS_CONTAINER_PORT}/${REDIS_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "${APP_HOST_PORT}:${APP_CONTAINER_PORT}"
+
+  worker:
+    container_name: ${WORKER_SERVICE_NAME}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+    command: sh -c "if [ -f app/worker.py ]; then rq worker --url redis://${REDIS_SERVICE_NAME}:${REDIS_CONTAINER_PORT}/${REDIS_DB} ${RQ_QUEUE_NAME}; else echo 'Sprint 1 RQ worker has not been created yet.'; sleep infinity; fi"
+    environment:
+      ZMART_BOOKING_DATABASE_HOST: ${DATABASE_SERVICE_NAME}
+      ZMART_BOOKING_DATABASE_NAME: ${POSTGRES_DB}
+      ZMART_BOOKING_DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      ZMART_BOOKING_DATABASE_PORT: ${POSTGRES_CONTAINER_PORT}
+      ZMART_BOOKING_DATABASE_USER: ${POSTGRES_USER}
+      ZMART_BOOKING_REDIS_URL: redis://${REDIS_SERVICE_NAME}:${REDIS_CONTAINER_PORT}/${REDIS_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  db:
+    container_name: ${DATABASE_SERVICE_NAME}
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "${POSTGRES_HOST_PORT}:${POSTGRES_CONTAINER_PORT}"
+    volumes:
+      - ${POSTGRES_VOLUME_NAME}:/var/lib/postgresql/data
+    networks:
+      default:
+        aliases:
+          - ${DATABASE_SERVICE_NAME}
+
+  redis:
+    container_name: ${REDIS_SERVICE_NAME}
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_HOST_PORT}:${REDIS_CONTAINER_PORT}"
+    networks:
+      default:
+        aliases:
+          - ${REDIS_SERVICE_NAME}
+
+volumes:
+  postgres_data:
