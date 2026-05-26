@@ -77,6 +77,12 @@ Run tests in Docker:
 $COMPOSE run --rm app pytest
 ```
 
+Or run the project test runner inside Docker:
+
+```bash
+$COMPOSE run --rm app scripts/test.sh
+```
+
 Run one test file:
 
 ```bash
@@ -180,6 +186,12 @@ Run tests:
 
 ```bash
 pytest
+```
+
+Or use the project test runner:
+
+```bash
+scripts/test.sh
 ```
 
 ## Common Docker Commands
