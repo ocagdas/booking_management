@@ -1,0 +1,8 @@
+<label for="starts_at">Available start time</label>
+<select id="starts_at" name="starts_at">
+  {% for slot in slots %}
+  <option value="{{ slot.isoformat() }}">{{ slot.strftime("%H:%M") }}</option>
+  {% else %}
+  <option value="">No available times</option>
+  {% endfor %}
+</select>

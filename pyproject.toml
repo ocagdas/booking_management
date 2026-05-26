@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "zmart-booking"
+version = "0.1.0"
+description = "Sprint 1 hairdresser booking foundation."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.16,<2.0",
+    "fastapi>=0.115,<1.0",
+    "jinja2>=3.1,<4.0",
+    "psycopg[binary]>=3.2,<4.0",
+    "pydantic>=2.9,<3.0",
+    "pydantic-settings>=2.9,<3.0",
+    "redis>=5.2,<6.0",
+    "rq>=2.1,<3.0",
+    "sqladmin>=0.20,<1.0",
+    "sqlalchemy>=2.0,<3.0",
+    "uvicorn>=0.34,<1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "beautifulsoup4>=4.12,<5.0",
+    "httpx>=0.28,<1.0",
+    "pytest>=8.3,<9.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+addopts = "-v"
+testpaths = ["tests"]

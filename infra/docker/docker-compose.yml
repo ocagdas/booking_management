@@ -53,7 +53,7 @@ services:
     ports:
       - "${POSTGRES_HOST_PORT}:${POSTGRES_CONTAINER_PORT}"
     volumes:
-      - ${POSTGRES_VOLUME_NAME}:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     networks:
       default:
         aliases:
@@ -71,3 +71,4 @@ services:
 
 volumes:
   postgres_data:
+    name: ${POSTGRES_VOLUME_NAME}

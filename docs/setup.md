@@ -5,13 +5,8 @@ This project supports two development paths:
 - fully containerised with `docker-compose`
 - native Python virtualenv with Docker only for PostgreSQL and Redis
 
-The repository is currently reset for Sprint 1 planning. The Docker files are
-present now so the run path is fixed before the app scaffold is rebuilt.
-
-Important: until the Sprint 1 FastAPI scaffold is created, the app and worker
-containers intentionally print placeholder messages and keep running. The
-database and Redis will start, but `http://127.0.0.1:8000/admin/sql` will not
-serve a page yet because SQLAdmin is not implemented.
+The Sprint 1 FastAPI scaffold is present. Run migrations before opening
+SQLAdmin for the first time.
 
 ## Prerequisites
 
@@ -40,9 +35,9 @@ configurable names in `infra/docker/.env` are used for container names, internal
 host aliases, URLs, ports, database credentials, queue name, and the Postgres
 volume name.
 
-The Dockerfile-specific ignore file is
-`infra/docker/Dockerfile.dockerignore`. It keeps Docker build ignores close to
-the Dockerfile while still allowing the build context to be the repository root.
+Docker build ignores are intentionally duplicated in the root `.dockerignore`
+and `infra/docker/Dockerfile.dockerignore`. Older `docker-compose` builds use
+the root `.dockerignore` because the build context is the repository root.
 
 For shorter commands in a shell session:
 
@@ -62,16 +57,13 @@ Start the app, PostgreSQL, Redis, and the RQ worker:
 $COMPOSE up
 ```
 
-In the current reset state this verifies container wiring only. Expected
-placeholder messages are:
+If you changed Dockerfile, dependency, image, or Compose settings, prefer a
+clean recreate:
 
-```text
-Sprint 1 app scaffold has not been created yet.
-Sprint 1 RQ worker has not been created yet.
+```bash
+$COMPOSE down --remove-orphans
+$COMPOSE up --build
 ```
-
-After the Sprint 1 app scaffold exists, the app service will run FastAPI and the
-SQLAdmin URL will become available.
 
 After the Sprint 1 app scaffold exists, run migrations:
 
@@ -103,12 +95,11 @@ Expected Sprint 1 admin URL:
 http://127.0.0.1:8000/admin/sql
 ```
 
-This URL works only after SQLAdmin has been implemented in Sprint 1. If you
-changed `APP_HOST_PORT` in `infra/docker/.env`, use that port instead.
+If you changed `APP_HOST_PORT` in `infra/docker/.env`, use that port instead.
 
-## Current Reset-State Checks
+## Infrastructure Checks
 
-Before the app scaffold exists, verify infrastructure services directly:
+Verify infrastructure services directly:
 
 ```bash
 $COMPOSE ps
@@ -221,6 +212,28 @@ Open a shell in the app container:
 
 ```bash
 $COMPOSE run --rm app sh
+```
+
+## Troubleshooting
+
+### `KeyError: 'ContainerConfig'`
+
+This is a known failure mode with legacy `docker-compose` v1.29.2 and newer
+Docker image metadata when Compose tries to recreate an existing container.
+
+Fix it by removing the existing containers and recreating them. This keeps the
+PostgreSQL volume because it does not use `-v`:
+
+```bash
+$COMPOSE down --remove-orphans
+$COMPOSE up --build
+```
+
+If you deliberately want a fresh database too:
+
+```bash
+$COMPOSE down -v --remove-orphans
+$COMPOSE up --build
 ```
 
 ## Notes For Sprint 1 Implementation
